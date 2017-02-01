@@ -3,28 +3,13 @@ Datastore and APIs for bookmarked reference material.
 
 ## Development
 
+
 ### Requirements
 
 * git: https://git-scm.com/downloads
 * Python 3: https://www.python.org/downloads/
 * virtualenv: http://docs.python-guide.org/en/latest/dev/virtualenvs/
 * Postgres: https://www.postgresql.org/download/
-
-### Getting Started
-
-1. Install [git](https://git-scm.com/downloads), [Python 3](https://www.python.org/downloads/), and [virtualenv](http://docs.python-guide.org/en/latest/dev/virtualenvs/).
-
-1. Get set up to [connect to github with ssh](https://help.github.com/articles/connecting-to-github-with-ssh/)
-
-1. Create virtual environment and clone `bookmarks` repo:
-
-  ```bash
-  cd ~/projects
-  virtualenv --python python3 --prompt presterity- venvs/presterity
-  source venvs/presterity/bin/activate
-  git clone git@github.com:presterity/bookmarks
-  pip install -r requirements.txt
-  ```
 
 
 ### Set up your database
@@ -45,15 +30,18 @@ Datastore and APIs for bookmarked reference material.
 
   ```sql
   psql
-  postgres=# create schema presterity;
-  postgres=# create user presterity password <password>;
-  postgres=# grant all on schema presterity to presterity;
+  postgres=# create database presterity;
+  postgres=# \c presterity;
+  postgres=# create schema apps;
+  postgres=# create user presterity_apps password <password>;
+  postgres=# alter role presterity_apps set search_path to apps;
+  postgres=# grant all on schema apps to presterity_apps;
   ```
 
-4. Connect to `presterity` database as `presterity` user and create schema:
+1. Connect to `presterity` database as `presterity_apps` user and populate `apps` schema:
 
   ```sql
-  psql -U presterity -d presterity -h 127.0.0.1 -W
+  psql -U presterity_apps -d presterity -h 127.0.0.1 -W
   presterity => \conninfo
   You are connected to database "presterity" as user "presterity" on host "127.0.0.1" at port "5432".
   SSL connection (cipher: DHE-RSA-AES256-GCM-SHA384, bits: 256)
@@ -82,3 +70,28 @@ Datastore and APIs for bookmarked reference material.
    public | bookmark_topic | table | presterity
   (3 rows)
   ```
+
+
+### Get the repo set up 
+
+1. Install [git](https://git-scm.com/downloads), [Python 3](https://www.python.org/downloads/), and [virtualenv](http://docs.python-guide.org/en/latest/dev/virtualenvs/).
+
+1. Install Python Postgres adapter
+
+  ```bash
+  sudo apt-get install libpq-dev python3-dev
+  ```
+
+1. Get set up to [connect to github with ssh](https://help.github.com/articles/connecting-to-github-with-ssh/)
+
+1. Create virtual environment and clone `bookmarks` repo:
+
+  ```bash
+  cd ~/projects
+  virtualenv --python python3 --prompt presterity- venvs/presterity
+  source venvs/presterity/bin/activate
+  git clone git@github.com:presterity/bookmarks
+  pip install -r requirements.txt
+  ```
+
+
