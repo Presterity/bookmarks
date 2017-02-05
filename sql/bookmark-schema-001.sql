@@ -5,7 +5,7 @@ CREATE OR REPLACE FUNCTION set_audit_updated()
 RETURNS TRIGGER AS $$
 BEGIN
     NEW.audit_updated = now();
-    RETURN NEW;	
+    RETURN NEW; 
 END;
 $$ language 'plpgsql';
 
@@ -22,6 +22,9 @@ CREATE TABLE bookmark (
 
   -- user-supplied summary of article
   summary TEXT NOT NULL,
+
+  -- user-supplied description or excerpt of article
+  description TEXT DEFAULT NULL,
 
   -- datetime of event that is topic of article
   sort_date_utc TIMESTAMPTZ NOT NULL,
