@@ -2,17 +2,16 @@
 
 -- Stored procedure for setting updated column
 CREATE OR REPLACE FUNCTION set_audit_updated()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER AS ' 
 BEGIN
     NEW.audit_updated = now();
     RETURN NEW; 
 END;
-$$ language 'plpgsql';
-
+' language 'plpgsql';
 
 -- Main bookmark table
-DROP TABLE IF EXISTS bookmark CASCADE;
-CREATE TABLE bookmark (
+DROP TABLE IF EXISTS apps.bookmark CASCADE;
+CREATE TABLE apps.bookmark (
 
   -- bookmark_id is UUID stored as 8-4-4-4-12
   bookmark_id CHAR(36) NOT NULL PRIMARY KEY,
@@ -54,12 +53,13 @@ CREATE TABLE bookmark (
   audit_created TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL,
   audit_updated TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
-CREATE TRIGGER BOOKMARK_AUDIT_UPDATED BEFORE UPDATE ON bookmark FOR EACH ROW EXECUTE PROCEDURE set_audit_updated();
+CREATE TRIGGER BOOKMARK_AUDIT_UPDATED BEFORE UPDATE ON apps.bookmark 
+FOR EACH ROW EXECUTE PROCEDURE set_audit_updated();
 
 
 -- Topics associated with bookmark; bookmark will appear in timeline on these topic pages
-DROP TABLE IF EXISTS bookmark_topic CASCADE;
-CREATE TABLE bookmark_topic (
+DROP TABLE IF EXISTS apps.bookmark_topic CASCADE;
+CREATE TABLE apps.bookmark_topic (
   bookmark_id CHAR(36) NOT NULL,
   topic VARCHAR(100) NOT NULL,
 
@@ -71,15 +71,16 @@ CREATE TABLE bookmark_topic (
   audit_updated TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL,
 
   PRIMARY KEY (bookmark_id, topic),
-  FOREIGN KEY (bookmark_id) REFERENCES bookmark
+  FOREIGN KEY (bookmark_id) REFERENCES apps.bookmark
 );
-CREATE INDEX BOOKMARK_TOPIC_TOPIC_IDX ON bookmark_topic USING btree (topic);
-CREATE TRIGGER BOOKMARK_TOPIC_AUDIT_UPDATED BEFORE UPDATE ON bookmark_topic FOR EACH ROW EXECUTE PROCEDURE set_audit_updated();
+CREATE INDEX BOOKMARK_TOPIC_TOPIC_IDX ON apps.bookmark_topic USING btree (topic);
+CREATE TRIGGER BOOKMARK_TOPIC_AUDIT_UPDATED BEFORE UPDATE ON apps.bookmark_topic 
+FOR EACH ROW EXECUTE PROCEDURE set_audit_updated();
 
 
 -- Volunteer or application-specified notes on bookmark; i.e. "duplicate of bookmark id 567"
-DROP TABLE IF EXISTS bookmark_note CASCADE;
-CREATE TABLE bookmark_note (
+DROP TABLE IF EXISTS apps.bookmark_note CASCADE;
+CREATE TABLE apps.bookmark_note (
   note_id CHAR(36) NOT NULL PRIMARY KEY,
   bookmark_id CHAR(36) NOT NULL,
   note TEXT NOT NULL,
@@ -94,8 +95,9 @@ CREATE TABLE bookmark_note (
   audit_created TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL,
   audit_updated TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL,
 
-  FOREIGN KEY (bookmark_id) REFERENCES bookmark
+  FOREIGN KEY (bookmark_id) REFERENCES apps.bookmark
 );
-CREATE INDEX BOOKMARK_NOTE_BOOKMARK_ID_IDX ON bookmark_note USING btree (bookmark_id);
-CREATE TRIGGER BOOKMARK_NOTE_AUDIT_UPDATED BEFORE UPDATE ON bookmark_note FOR EACH ROW EXECUTE PROCEDURE set_audit_updated();
+CREATE INDEX BOOKMARK_NOTE_BOOKMARK_ID_IDX ON apps.bookmark_note USING btree (bookmark_id);
+CREATE TRIGGER BOOKMARK_NOTE_AUDIT_UPDATED BEFORE UPDATE ON apps.bookmark_note 
+FOR EACH ROW EXECUTE PROCEDURE set_audit_updated();
 
