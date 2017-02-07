@@ -10,8 +10,8 @@ END;
 ' language 'plpgsql';
 
 -- Main bookmark table
-DROP TABLE IF EXISTS apps.bookmark CASCADE;
-CREATE TABLE apps.bookmark (
+DROP TABLE IF EXISTS apps.bookmarks CASCADE;
+CREATE TABLE apps.bookmarks (
 
   -- bookmark_id is UUID stored as 8-4-4-4-12
   bookmark_id CHAR(36) NOT NULL PRIMARY KEY,
@@ -53,13 +53,13 @@ CREATE TABLE apps.bookmark (
   audit_created TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL,
   audit_updated TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
-CREATE TRIGGER BOOKMARK_AUDIT_UPDATED BEFORE UPDATE ON apps.bookmark 
+CREATE TRIGGER BOOKMARKS_AUDIT_UPDATED BEFORE UPDATE ON apps.bookmarks 
 FOR EACH ROW EXECUTE PROCEDURE set_audit_updated();
 
 
 -- Topics associated with bookmark; bookmark will appear in timeline on these topic pages
-DROP TABLE IF EXISTS apps.bookmark_topic CASCADE;
-CREATE TABLE apps.bookmark_topic (
+DROP TABLE IF EXISTS apps.bookmark_topics CASCADE;
+CREATE TABLE apps.bookmark_topics (
   bookmark_id CHAR(36) NOT NULL,
   topic VARCHAR(100) NOT NULL,
 
@@ -71,16 +71,16 @@ CREATE TABLE apps.bookmark_topic (
   audit_updated TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL,
 
   PRIMARY KEY (bookmark_id, topic),
-  FOREIGN KEY (bookmark_id) REFERENCES apps.bookmark
+  FOREIGN KEY (bookmark_id) REFERENCES apps.bookmarks
 );
-CREATE INDEX BOOKMARK_TOPIC_TOPIC_IDX ON apps.bookmark_topic USING btree (topic);
-CREATE TRIGGER BOOKMARK_TOPIC_AUDIT_UPDATED BEFORE UPDATE ON apps.bookmark_topic 
+CREATE INDEX BOOKMARK_TOPICS_TOPIC_IDX ON apps.bookmark_topics USING btree (topic);
+CREATE TRIGGER BOOKMARK_TOPICS_AUDIT_UPDATED BEFORE UPDATE ON apps.bookmark_topics 
 FOR EACH ROW EXECUTE PROCEDURE set_audit_updated();
 
 
 -- Volunteer or application-specified notes on bookmark; i.e. "duplicate of bookmark id 567"
-DROP TABLE IF EXISTS apps.bookmark_note CASCADE;
-CREATE TABLE apps.bookmark_note (
+DROP TABLE IF EXISTS apps.bookmark_notes CASCADE;
+CREATE TABLE apps.bookmark_notes (
   note_id CHAR(36) NOT NULL PRIMARY KEY,
   bookmark_id CHAR(36) NOT NULL,
   note TEXT NOT NULL,
@@ -95,9 +95,9 @@ CREATE TABLE apps.bookmark_note (
   audit_created TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL,
   audit_updated TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL,
 
-  FOREIGN KEY (bookmark_id) REFERENCES apps.bookmark
+  FOREIGN KEY (bookmark_id) REFERENCES apps.bookmarks
 );
-CREATE INDEX BOOKMARK_NOTE_BOOKMARK_ID_IDX ON apps.bookmark_note USING btree (bookmark_id);
-CREATE TRIGGER BOOKMARK_NOTE_AUDIT_UPDATED BEFORE UPDATE ON apps.bookmark_note 
+CREATE INDEX BOOKMARK_NOTES_BOOKMARK_ID_IDX ON apps.bookmark_notes USING btree (bookmark_id);
+CREATE TRIGGER BOOKMARK_NOTES_AUDIT_UPDATED BEFORE UPDATE ON apps.bookmark_notes
 FOR EACH ROW EXECUTE PROCEDURE set_audit_updated();
 
