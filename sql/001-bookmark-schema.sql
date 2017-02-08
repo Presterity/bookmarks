@@ -26,19 +26,19 @@ CREATE TABLE apps.bookmarks (
   description TEXT DEFAULT NULL,
 
   -- datetime of event that is topic of article
-  sort_date_utc TIMESTAMPTZ NOT NULL,
+  event_date TIMESTAMPTZ NOT NULL,
   
   -- status of bookmark; e.g. 'not relevant', 'duplicate', 'accepted', etc.
   status VARCHAR(100) DEFAULT NULL,
 
-  -- partial or full date that will be displayed with bookmark: YYYY, YYYY.mm, YYYY.mm.dd, YYYY.mm.dd HH, YYYY.mm.dd HH:MM
-  display_date VARCHAR(50) NOT NULL,
+  -- format for date that will be displayed with bookmark: %Y, %Y.%m, %Y.%m.%d, %Y.%m.%d %H, %Y.%m.%d %H:%M
+  display_date_format VARCHAR(20) NOT NULL,
 
   -- source of bookmark, e.g. 'raindrop'
   source VARCHAR(50) DEFAULT NULL,
 
   -- identifier of bookmark by source, e.g. raindrop_id 
-  source_bookmark_id VARCHAR(100) DEFAULT NULL,
+  source_item_id VARCHAR(100) DEFAULT NULL,
   
   -- last_updated date on source; used to decide if bookmark needs to be refreshed in data store
   source_last_updated TIMESTAMPTZ DEFAULT NULL,
@@ -47,7 +47,7 @@ CREATE TABLE apps.bookmarks (
   submitter_id VARCHAR(100) DEFAULT NULL,
   
   -- date on which bookmark was submitted
-  submission_date_utc TIMESTAMPTZ DEFAULT NULL,
+  submission_date TIMESTAMPTZ DEFAULT NULL,
 
   -- for ops only
   audit_created TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL,
@@ -83,7 +83,7 @@ DROP TABLE IF EXISTS apps.bookmark_notes CASCADE;
 CREATE TABLE apps.bookmark_notes (
   note_id CHAR(36) NOT NULL PRIMARY KEY,
   bookmark_id CHAR(36) NOT NULL,
-  note TEXT NOT NULL,
+  text TEXT NOT NULL,
 
   -- id of voluteer or application who authored note
   author VARCHAR(100) NOT NULL,
