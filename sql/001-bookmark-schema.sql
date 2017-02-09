@@ -25,8 +25,11 @@ CREATE TABLE apps.bookmarks (
   -- user-supplied description or excerpt of article
   description TEXT DEFAULT NULL,
 
-  -- datetime of event that is topic of article
-  event_date TIMESTAMPTZ NOT NULL,
+  -- datetime of event that is topic of article to be used for sorting; may not
+  -- be exact event_date, i.e., we may only know year & month, in which case we
+  -- will store the first of the month and sort by that, but only display the 
+  -- actual provided information, using display_date_format 
+  sort_date TIMESTAMPTZ NOT NULL,
   
   -- status of bookmark; e.g. 'not relevant', 'duplicate', 'accepted', etc.
   status VARCHAR(100) DEFAULT NULL,
