@@ -36,7 +36,7 @@ class BookmarkTests(BookmarkDaoTestCase):
         self._uuid = uuid.uuid4()
         self._url = "http://nytimes.com/news/article.html"
         self._summary = "Good article about peanuts"
-        self._event_date = datetime(2017, 2, 7, 18, 30, tzinfo=pytz.utc)
+        self._sort_date = datetime(2017, 2, 7, 18, 30, tzinfo=pytz.utc)
         self._description = "Peanuts do not grow on trees!"
         self._display_date_format = '%Y.%m'
         self._status = 'duplicate'
@@ -51,7 +51,7 @@ class BookmarkTests(BookmarkDaoTestCase):
         bookmark = Bookmark(
             url=self._url,
             summary=self._summary,
-            event_date=self._event_date)
+            sort_date=self._sort_date)
         self._save_bookmark(bookmark)
 
         bookmarks = self.session.query(Bookmark).all()
@@ -62,7 +62,7 @@ class BookmarkTests(BookmarkDaoTestCase):
         self.assertIsNotNone(retrieved_bookmark.bookmark_id)
         self.assertEqual(self._url, retrieved_bookmark.url)
         self.assertEqual(self._summary, retrieved_bookmark.summary)
-        self.assertEqual(self._event_date, retrieved_bookmark.event_date)
+        self.assertEqual(self._sort_date, retrieved_bookmark.sort_date)
 
         # Verify default attributes
         self.assertEqual('new', retrieved_bookmark.status)
@@ -78,7 +78,7 @@ class BookmarkTests(BookmarkDaoTestCase):
             bookmark_id=self._uuid,
             url=self._url,
             summary=self._summary,
-            event_date=self._event_date,
+            sort_date=self._sort_date,
             description=self._description,
             display_date_format=self._display_date_format,
             status=self._status,

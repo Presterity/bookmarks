@@ -23,7 +23,7 @@ class Bookmark(Base):
     bookmark_id = sa.Column(UUIDType(), primary_key=True, default=UUIDType.new_uuid)
     url = sa.Column(sa.String(2000), nullable=False)
     summary = sa.Column(sa_types.Text(), nullable=False)
-    event_date = sa.Column(sa_types.TIMESTAMP(timezone=True), nullable=False)
+    sort_date = sa.Column(sa_types.TIMESTAMP(timezone=True), nullable=False)
     description = sa.Column(sa_types.Text(), default=None)
     display_date_format = sa.Column(sa.String(20), nullable=False, default='%Y.%m.%d')
     status = sa.Column(sa.String(100), nullable=False, default='new')
