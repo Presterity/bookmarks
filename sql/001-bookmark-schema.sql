@@ -74,7 +74,7 @@ CREATE TABLE apps.bookmark_topics (
   audit_updated TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL,
 
   PRIMARY KEY (bookmark_id, topic),
-  FOREIGN KEY (bookmark_id) REFERENCES apps.bookmarks
+  FOREIGN KEY (bookmark_id) REFERENCES apps.bookmarks ON DELETE CASCADE
 );
 CREATE INDEX BOOKMARK_TOPICS_TOPIC_IDX ON apps.bookmark_topics USING btree (topic);
 CREATE TRIGGER BOOKMARK_TOPICS_AUDIT_UPDATED BEFORE UPDATE ON apps.bookmark_topics 
@@ -98,7 +98,7 @@ CREATE TABLE apps.bookmark_notes (
   audit_created TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL,
   audit_updated TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL,
 
-  FOREIGN KEY (bookmark_id) REFERENCES apps.bookmarks
+  FOREIGN KEY (bookmark_id) REFERENCES apps.bookmarks ON DELETE CASCADE
 );
 CREATE INDEX BOOKMARK_NOTES_BOOKMARK_ID_IDX ON apps.bookmark_notes USING btree (bookmark_id);
 CREATE TRIGGER BOOKMARK_NOTES_AUDIT_UPDATED BEFORE UPDATE ON apps.bookmark_notes
