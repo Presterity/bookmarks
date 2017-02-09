@@ -54,11 +54,13 @@ class BookmarkNote(Base):
     created_on = sa.Column(sa_types.TIMESTAMP(timezone=True), nullable=False)
 
 
+# Cascading delete is set up at DB level and is not re-specified here
 Bookmark.topics = sa_orm.relationship(
     BookmarkTopic,
     primaryjoin=Bookmark.bookmark_id==BookmarkTopic.bookmark_id,
     order_by=lambda: (BookmarkTopic.topic, BookmarkTopic.created_on))
 
+# Cascading delete is set up at DB level and is not re-specified here
 Bookmark.notes = sa_orm.relationship(
     BookmarkNote,
     primaryjoin=Bookmark.bookmark_id==BookmarkNote.bookmark_id,
