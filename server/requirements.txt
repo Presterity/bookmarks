@@ -1,5 +1,6 @@
 Flask
 SQLAlchemy
 mschematool
+tldextract
 psycopg2
 pytz

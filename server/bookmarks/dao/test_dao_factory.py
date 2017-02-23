@@ -18,7 +18,8 @@ class TestDaoFactory(object):
         attrs = {'bookmark_id': uuid.uuid4(),
                  'url': 'http://news/articles/article12.html',
                  'summary': 'Mr. Ed says the Pledge of Allegiance',
-                 'event_date': datetime.utcnow()}
+                 'sort_date': datetime.utcnow(),
+                 'display_date_format': '%Y.%m.%d'}
         attrs.update(**kwargs)
         return Bookmark(**attrs)
 

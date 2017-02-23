@@ -3,18 +3,18 @@
 
 from typing import Optional, Any, Callable
 
-import flask
+from flask import Flask, jsonify
 
+import bookmarks.dao as dao
 
 # Create Flask app
-app = flask.Flask(__name__)
+app = Flask(__name__)
 
 
 # API methods / endpoints
 @app.route('/')
 def root():
     return 'OK'
-
 
 @app.route('/info')
 def info():
@@ -24,13 +24,21 @@ def info():
 
 @app.route("/api/1702/bookmark/", methods=['GET'])
 def get_bookmarks():
-    """Retrieve bookmarks, optionally filtered by tag.
+    """Retrieve bookmarks, optionally filtered by topic.
     """
-    return API.get_bookmarks(tags=tags, version=1702)
+    response_data = [ResponseFormatter.format_bookmark(b, version=1702) 
+                     for b in dao.Bookmark.select_bookmarks()]
+    return jsonify(response_data), 200
 
 @app.route("/api/1702/bookmark/<string:bookmark_id>", methods=['GET'])
 def get_bookmark_by_id(bookmark_id):
     """Retrieve specific bookmark.
     """
-    return API.get_bookmark_by_id(bookmark_id, version=1702)
-
+    bookmark = dao.Bookmark.select_bookmark_by_id(bookmark_id)
+    if not bookmark:
+        response_data = {'error': 'bookmark not found'}
+        status_code = 404
+    else:
+        response_data = ResponseFormatter.format_bookmark(bookmark)
+        status_code = 200
+    return jsonify(response_data), 200 
