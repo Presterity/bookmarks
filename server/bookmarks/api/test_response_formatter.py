@@ -7,7 +7,7 @@ import unittest
 import uuid
 
 from bookmarks.dao import TestDaoFactory
-from response_formatter import ResponseFormatter
+from .response_formatter import ResponseFormatter
 
 
 class ResponseFormatterTests(unittest.TestCase):
