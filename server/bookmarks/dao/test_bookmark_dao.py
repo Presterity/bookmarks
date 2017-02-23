@@ -1,12 +1,15 @@
 """Tests for Bookmark DAO objects.
+
+python -m unittest -v bookmarks.dao.test_bookmark_dao
 """
 
-from datetime import datetime
+from datetime import datetime, timedelta
 import pytz
 import unittest
 import uuid
 
 from .core import get_session
+from .test_dao_factory import TestDaoFactory
 from .bookmark_dao import Bookmark, BookmarkTopic, BookmarkNote
 
 
@@ -21,12 +24,11 @@ class BookmarkDaoTestCase(unittest.TestCase):
         self._sort_date = datetime(2017, 2, 7, 18, 30, tzinfo=pytz.utc)
 
     def tearDown(self):
-        # Delete test bookmarks; they are not currently being committed, so not
-        # really necessary, but that may change if we turn on autocommit or something
-        # else changes.
+        # Delete test bookmarks
         for bookmark_id in self._test_bookmark_ids:
             self.session.query(Bookmark).filter_by(bookmark_id=bookmark_id).delete()
         self.session.flush()
+        self.session.commit()
 
     def _create_test_bookmark(self):
         """Return Bookmark that has been saved to db."""
@@ -35,6 +37,7 @@ class BookmarkDaoTestCase(unittest.TestCase):
                                      summary=self._summary,
                                      sort_date=self._sort_date))
         return self._select_bookmark(self._bookmark_id)
+
     def _save_bookmark(self, bookmark):
         """Helper function for saving bookmark to database; records id for cleanup"""
         saved_bookmark = self.session.merge(bookmark)
@@ -94,6 +97,11 @@ class BookmarkTests(BookmarkDaoTestCase):
         for attr in ('source', 'source_item_id', 'submitter_id', 'submission_date'):
             self.assertIsNone(getattr(retrieved_bookmark, attr))
 
+        q = self.session.query(Bookmark)
+        q = q.order_by(Bookmark.sort_date)
+        foo = q.all()
+        self.assertEqual(1, len(foo))
+
     def test_bookmark__all(self):
         """Verify Bookmark creation with all data specified."""
         bookmark = Bookmark(
@@ -138,6 +146,52 @@ class BookmarkTests(BookmarkDaoTestCase):
         self.assertEqual(1, len(bookmarks))
         retrieved_bookmark = bookmarks[0]
         self.assertEqual(self._bookmark_id, retrieved_bookmark.bookmark_id)
+
+
+class BookmarkMethodTests(BookmarkDaoTestCase):
+    """Verify behavior of convenience CRUD methods.
+
+    Since Bookmark itself is verified in other tests, this test will use TestDaoFactory
+    for convenience.
+    """
+
+    def test_select_bookmarks__no_bookmarks(self):
+        """Verify empty list returned by Bookmark.select_bookmarks when there are none.
+        """
+        self.assertEqual([], Bookmark.select_bookmarks())
+
+    def test_select_bookmarks(self):
+        """Verify Bookmark.select_bookmarks result."""
+        today = datetime.utcnow().replace(tzinfo=pytz.utc)
+        yesterday = today + timedelta(days=1)
+        test_bookmarks = [TestDaoFactory.create_bookmark(sort_date=today),
+                          TestDaoFactory.create_bookmark(sort_date=yesterday)]
+        saved_bookmarks = [self._save_bookmark(b) for b in test_bookmarks]
+        self.session.flush()
+        self.session.commit()
+
+        selected_bookmarks = Bookmark.select_bookmarks()
+        self.assertEqual(2, len(selected_bookmarks))
+
+    def test_select_bookmarks__by_topic(self):
+        """Verify Bookmark.select_bookmarks result when topic is specified."""
+        self.fail("not implemented")
+
+    def test_select_bookmarks__by_topic__no_bookmarks(self):
+        """Verify Bookmark.select_bookmarks result when topic does not match any bookmarks."""
+        self.fail("not implemented")
+
+    def test_select_bookmarks__multiple_topics(self):
+        """Verify Bookmark.select_bookmarks result when multiple topics are specified."""
+        self.fail("not implemented")
+
+    def test_select_bookmark_by_id(self):
+        """Verify Bookmark.select_bookmark_by_id."""
+        self.fail("not implemented")
+
+    def test_select_bookmark_by_id__no_bookmark(self):
+        """Verify Bookmark.select_bookmark_by_id when on such bookmark exists."""
+        self.fail("not implemented")
 
 
 class BookmarkTopicTests(BookmarkDaoTestCase):

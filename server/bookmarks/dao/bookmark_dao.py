@@ -1,12 +1,15 @@
 """ORM representation of bookmark data model.
 """
 
+from typing import List
+
 import sqlalchemy as sa
 import sqlalchemy.ext.associationproxy as sa_assoc_proxy
 from sqlalchemy.ext.declarative import declarative_base
 import sqlalchemy.orm as sa_orm
 import sqlalchemy.types as sa_types
 
+from .core import get_session
 from .uuid_type import UUIDType
 
 
@@ -32,7 +35,33 @@ class Bookmark(Base):
     source_last_updated = sa.Column(sa_types.TIMESTAMP(timezone=True), default=None)
     submitter_id = sa.Column(sa.String(100), default=None)
     submission_date = sa.Column(sa_types.TIMESTAMP(timezone=True), default=None)
-    
+
+    @classmethod
+    def select_bookmarks(cls, topics: List[str]=None):
+        """Select bookmarks, filtering by topics if specified, in ascending order by sort_date.
+
+        If topics are specified, each returned Bookmark will be associated with 
+        at least one of specified topics.
+
+        :param tags: option list of strings that are bookmark topics
+        :return: list of Bookmarks; empty list if no Bookmarks are found
+        """
+        query = get_session().query(Bookmark)
+        if topics:
+            pass
+        query = query.order_by(Bookmark.sort_date)
+        return query.all()
+
+    @classmethod
+    def select_bookmark_by_id(cls, bookmark_id: str):
+        """Select bookmark for specified id. 
+
+        :param bookmark_id: string that is bookmark id
+        :return: selected Bookmark or None if no such bookmark exists
+        """
+        query = get_session().query(Bookmark).filter_by(bookmark_id=bookmark_id)
+        return query.first()
+        
 
 class BookmarkTopic(Base):
     __tablename__ = 'bookmark_topics'
