@@ -17,19 +17,19 @@ assert PRESTERITY_ENV in _PRESTERITY_ENVS, "PRESTERITY_ENV must be one of '{}'."
 _POSTGRES_CONNECTION_STRING = 'postgresql://{user}:{password}@{netloc_and_port}/{database}'
 if PRESTERITY_ENV == 'local':
     PRESTERITY_DB_URL = _POSTGRES_CONNECTION_STRING.format(
-        user='presterity_apps',
+        user='app_user',
         password='resist',
         netloc_and_port='localhost',
         database='presterity')
 elif PRESTERITY_ENV == 'dev':
     PRESTERITY_DB_URL = _POSTGRES_CONNECTION_STRING.format(
-        user='presterity_apps',
+        user='app_user',
         password=os.environ['PRESTERITY_DEV_PASSWORD'],
-        netloc_and_port='presterity-dev.civm9kvdku8h.us-west-2.rds.amazonaws.com:5432',
+        netloc_and_port='somehost:someport',
         database='presterity')
 elif PRESTERITY_ENV == 'prod':
     PRESTERITY_DB_URL = _POSTGRES_CONNECTION_STRING.format(
-        user='presterity_apps',
+        user='app_user',
         password=os.environ['PRESTERITY_PROD_PASSWORD'],
-        netloc_and_port='presterity-prod.civm9kvdku8h.us-west-2.rds.amazonaws.com:5432',
+        netloc_and_port='somehost:someport',
         database='presterity')
