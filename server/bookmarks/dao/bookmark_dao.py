@@ -40,15 +40,17 @@ class Bookmark(Base):
     def select_bookmarks(cls, topics: List[str]=None):
         """Select bookmarks, filtering by topics if specified, in ascending order by sort_date.
 
-        If topics are specified, each returned Bookmark will be associated with 
-        at least one of specified topics.
+        If topics are specified, returned result is union of all Bookmarks associated 
+        with at least one of specified topics.
 
         :param tags: option list of strings that are bookmark topics
         :return: list of Bookmarks; empty list if no Bookmarks are found
         """
-        query = get_session().query(Bookmark)
+        session = get_session()
+        query = session.query(Bookmark)
         if topics:
-            pass
+            topic_query = session.query(BookmarkTopic.bookmark_id).filter(BookmarkTopic.topic.in_(topics))
+            query = query.filter(Bookmark.bookmark_id.in_(topic_query.subquery()))
         query = query.order_by(Bookmark.sort_date)
         return query.all()
 

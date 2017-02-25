@@ -31,7 +31,7 @@ class TestDaoFactory(object):
         """
         attrs = {'bookmark_id': uuid.uuid4(),
                  'topic': 'Test Topic',
-                 'created_on': datetime.utcnow}
+                 'created_on': datetime.utcnow()}
         attrs.update(**kwargs)
         return BookmarkTopic(**attrs)
 

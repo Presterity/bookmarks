@@ -163,27 +163,79 @@ class BookmarkMethodTests(BookmarkDaoTestCase):
     def test_select_bookmarks(self):
         """Verify Bookmark.select_bookmarks result."""
         today = datetime.utcnow().replace(tzinfo=pytz.utc)
-        yesterday = today + timedelta(days=1)
-        test_bookmarks = [TestDaoFactory.create_bookmark(sort_date=today),
-                          TestDaoFactory.create_bookmark(sort_date=yesterday)]
-        saved_bookmarks = [self._save_bookmark(b) for b in test_bookmarks]
+        today_bookmark = TestDaoFactory.create_bookmark(sort_date=today)
+        yesterday_bookmark = TestDaoFactory.create_bookmark(sort_date=today - timedelta(days=1))
+        saved_bookmarks = [self._save_bookmark(b) for b in [today_bookmark, yesterday_bookmark]]
         self.session.flush()
         self.session.commit()
 
+        # Verify expected ids in expected order (ascending by date)
         selected_bookmarks = Bookmark.select_bookmarks()
-        self.assertEqual(2, len(selected_bookmarks))
+        self.assertEqual([yesterday_bookmark.bookmark_id, today_bookmark.bookmark_id],
+                         [b.bookmark_id for b in selected_bookmarks])
 
-    def test_select_bookmarks__by_topic(self):
+    def test_select_bookmarks_by_topic(self):
         """Verify Bookmark.select_bookmarks result when topic is specified."""
-        self.fail("not implemented")
+        topic = "Hello World"
+        topic_bookmark = TestDaoFactory.create_bookmark(
+            topics=[TestDaoFactory.create_bookmark_topic(topic=topic)])
+        other_topic_bookmark = TestDaoFactory.create_bookmark(
+            topics=[TestDaoFactory.create_bookmark_topic(topic="Aloha World")])
+        no_topic_bookmark = TestDaoFactory.create_bookmark()
+        saved_bookmarks = [self._save_bookmark(b) for b in 
+                           [other_topic_bookmark, topic_bookmark, no_topic_bookmark]]
+        self.session.flush()
+        self.session.commit()
 
-    def test_select_bookmarks__by_topic__no_bookmarks(self):
+        # Verify selection
+        selected_bookmarks = Bookmark.select_bookmarks(topics=[topic])
+        self.assertEqual([topic_bookmark.bookmark_id], [b.bookmark_id for b in selected_bookmarks])
+
+    def test_select_bookmarks_by_topic__no_matching_bookmarks(self):
         """Verify Bookmark.select_bookmarks result when topic does not match any bookmarks."""
-        self.fail("not implemented")
+        topic = "Hello World"
+        other_topic_bookmark = TestDaoFactory.create_bookmark(
+            topics=[TestDaoFactory.create_bookmark_topic(topic="Aloha World")])
+        no_topic_bookmark = TestDaoFactory.create_bookmark()
+        saved_bookmarks = [self._save_bookmark(b) for b in 
+                           [other_topic_bookmark, no_topic_bookmark]]
+        self.session.flush()
+        self.session.commit()
 
-    def test_select_bookmarks__multiple_topics(self):
+        # Verify selection
+        self.assertEqual([], Bookmark.select_bookmarks(topics=[topic]))
+
+    def test_select_bookmarks_by_topic__multiple_topics(self):
         """Verify Bookmark.select_bookmarks result when multiple topics are specified."""
-        self.fail("not implemented")
+        topics = ["Hello World", "Aloha World"]
+        topic_zero_bookmark = TestDaoFactory.create_bookmark(
+            topics=[TestDaoFactory.create_bookmark_topic(topic=topics[0])])
+        topic_one_bookmark = TestDaoFactory.create_bookmark(
+            topics=[TestDaoFactory.create_bookmark_topic(topic=topics[1])])
+        other_topic_bookmark = TestDaoFactory.create_bookmark(
+            topics=[TestDaoFactory.create_bookmark_topic(topic="Banana Bread")])
+        saved_bookmarks = [self._save_bookmark(b) for b in 
+                           [other_topic_bookmark, topic_zero_bookmark, topic_one_bookmark]]
+        self.session.flush()
+        self.session.commit()
+
+        # Verify selection: Should be OR of bookmarks with any specified topic
+        selected_bookmarks = Bookmark.select_bookmarks(topics=topics)
+        self.assertEqual(set([topic_zero_bookmark.bookmark_id, topic_one_bookmark.bookmark_id]), 
+                         set([b.bookmark_id for b in selected_bookmarks]))
+
+    def test_select_bookmarks_by_topic__multiple_topics__double_match(self):
+        """Verify Bookmark.select_bookmarks result dedupes double topic match."""
+        topics = ["Hello World", "Aloha World"]
+        double_match_bookmark = TestDaoFactory.create_bookmark(
+            topics=[TestDaoFactory.create_bookmark_topic(topic=t) for t in topics])
+        saved_bookmarks = [self._save_bookmark(double_match_bookmark)]
+        self.session.flush()
+        self.session.commit()
+
+        # Verify selection: Should be length 1
+        selected_bookmarks = Bookmark.select_bookmarks(topics=topics)
+        self.assertEqual([double_match_bookmark.bookmark_id], [b.bookmark_id for b in selected_bookmarks])
 
     def test_select_bookmark_by_id(self):
         """Verify Bookmark.select_bookmark_by_id."""
