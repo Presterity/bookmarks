@@ -239,11 +239,26 @@ class BookmarkMethodTests(BookmarkDaoTestCase):
 
     def test_select_bookmark_by_id(self):
         """Verify Bookmark.select_bookmark_by_id."""
-        self.fail("not implemented")
+        match_bookmark = TestDaoFactory.create_bookmark()
+        other_bookmark = TestDaoFactory.create_bookmark()
+        saved_bookmarks = [self._save_bookmark(b) for b in [other_bookmark, match_bookmark]]
+        self.session.flush()
+        self.session.commit()
+
+        # Verify selection
+        selected_bookmark = Bookmark.select_bookmark_by_id(match_bookmark.bookmark_id)
+        self.assertEqual(match_bookmark.bookmark_id, selected_bookmark.bookmark_id)
 
     def test_select_bookmark_by_id__no_bookmark(self):
         """Verify Bookmark.select_bookmark_by_id when on such bookmark exists."""
-        self.fail("not implemented")
+        bookmark = TestDaoFactory.create_bookmark()
+        other_bookmark = TestDaoFactory.create_bookmark()
+        saved_bookmarks = [self._save_bookmark(b) for b in [other_bookmark, bookmark]]
+        self.session.flush()
+        self.session.commit()
+
+        # Verify selection
+        self.assertIsNone(Bookmark.select_bookmark_by_id(uuid.uuid4()))
 
 
 class BookmarkTopicTests(BookmarkDaoTestCase):
