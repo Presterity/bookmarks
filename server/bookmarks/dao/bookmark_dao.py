@@ -1,7 +1,7 @@
 """ORM representation of bookmark data model.
 """
 
-from typing import List
+from typing import List, Optional
 
 import sqlalchemy as sa
 import sqlalchemy.ext.associationproxy as sa_assoc_proxy
@@ -37,7 +37,7 @@ class Bookmark(Base):
     submission_date = sa.Column(sa_types.TIMESTAMP(timezone=True), default=None)
 
     @classmethod
-    def select_bookmarks(cls, topics: List[str]=None):
+    def select_bookmarks(cls, topics: List[str]=None) -> List['Bookmark']:
         """Select bookmarks, filtering by topics if specified, in ascending order by sort_date.
 
         If topics are specified, returned result is union of all Bookmarks associated 
@@ -55,7 +55,7 @@ class Bookmark(Base):
         return query.all()
 
     @classmethod
-    def select_bookmark_by_id(cls, bookmark_id: str):
+    def select_bookmark_by_id(cls, bookmark_id: str) -> Optional['Bookmark']:
         """Select bookmark for specified id. 
 
         :param bookmark_id: string that is bookmark id
