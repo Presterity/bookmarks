@@ -112,3 +112,21 @@ a REST API used by the internal and user-facing Presterity web clients.
   ```
   python -m unittest discover -v bookmarks
   ```
+
+
+## Running the Bookmark Manager service
+
+The Bookmark Manager is a web service, currently implemented in Flask. To run, start
+your Python 3 virtualenv, and from the bookmarks repo root, run
+
+  ```bash
+  python ./server/run.py 
+  ```
+
+To verify that the server is running, go to `http://localhost:8080/` in a browser or hit it with curl. It should respond 'OK'
+
+   ```bash
+   curl http://localhost:8080/
+   ```
+
+
