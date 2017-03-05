@@ -1,15 +1,23 @@
 """Transformations of DAOs into dicts ready for serialization.
 """
 
+from typing import List
+
 import tldextract
 
 import bookmarks.dao as dao
 
 
 class ResponseFormatter(object):
+
+    @classmethod
+    def format_bookmarks_response(cls, bookmarks: List[dao.Bookmark], version=None) -> dict:
+        """Transform bookmarks into expected response for GET of multiple bookmarks.
+        """
+        return {'bookmarks': [cls.format_bookmark(b, version=version) for b in bookmarks]}
     
     @classmethod
-    def format_bookmark(cls, bookmark: dao.Bookmark) -> dict:
+    def format_bookmark(cls, bookmark: dao.Bookmark, version=None) -> dict:
         """Transform Bookmark object into dict to be serialized into response data.
 
         Expected format:
