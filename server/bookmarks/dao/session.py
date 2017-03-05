@@ -21,10 +21,12 @@ class Session(object):
     _session = None
     
     @classmethod
-    def _initialize(cls):
+    def initialize(cls):
         """Create scoped session.
 
-        This should be called once per process.
+        This should be called once per process. 
+        It will be called automatically by Session.get if necessary, but rather than delay the first
+        get, it is preferable to call this when the process starts.
         """
         if cls._session:
             log.info("Session has already been initialized")
@@ -37,7 +39,7 @@ class Session(object):
     def get(cls):
         """Return scoped session, creating it if necessary."""
         if cls._session is None:
-            cls._initialize()
+            cls.initialize()
         return cls._session
 
     @classmethod

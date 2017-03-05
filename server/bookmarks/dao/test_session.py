@@ -22,7 +22,7 @@ class SessionTest(unittest.TestCase):
     def test_initialize(self):
         """Test Session initialization."""
         self.assertIsNone(Session._session)
-        Session._initialize()
+        Session.initialize()
         self.assertIsNotNone(Session._session)
 
     def test_get(self):
@@ -34,7 +34,7 @@ class SessionTest(unittest.TestCase):
         ping = session.connection().execute(text("SELECT 'ping' AS pong")).fetchone()['pong']
         self.assertEqual(ping, "ping")
 
-    @patch.object(Session, '_initialize')
+    @patch.object(Session, 'initialize')
     def test_get__initialize(self, mock_initialize):
         """Verify that Session.get initializes session iff necessary."""
         self.assertIsNone(Session._session)
@@ -52,18 +52,28 @@ class SessionTest(unittest.TestCase):
         session_2 = Session.get()
         self.assertTrue(session_1 is session_2)
 
-    def test_close(self):
-        """Verify that close releases session back to connection pool."""
-        pass
-
     def test_close__commit(self):
-        """Verify that close calls commit if requested."""
-        pass
+        """Verify that close calls commit if requested before releasing session back to connection pool."""
+        mock_session = Mock(name='mock_session',
+                            commit=Mock(),
+                            remove=Mock())
+        Session._session = mock_session
+        Session.close(commit=True)
+        mock_session.remove.assert_called_once_with()
+        mock_session.commit.assert_called_once_with()
 
     def test_close__no_commit(self):
-        """Verify that close does not call commit if not requested."""
-        pass
+        """Verify that close does not call commit if not requested before releasing session."""
+        mock_session = Mock(name='mock_session',
+                            commit=Mock(),
+                            remove=Mock())
+        Session._session = mock_session
+        Session.close(commit=False)
+        mock_session.remove.assert_called_once_with()
+        self.assertEqual(0, mock_session.commit.call_count)
 
     def test_close__no_session(self):
-        """Verify that calling close raises if no session exists, i.e. Session.get was never called."""
-        pass
+        """Verify that calling close does no harm if no session exists, neither Session.initialize nor get was ever called."""
+        self.assertIsNone(Session._session)
+        Session.close()
+        self.assertIsNone(Session._session)
