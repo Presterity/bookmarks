@@ -8,14 +8,15 @@ import pytz
 import unittest
 import uuid
 
-from .core import get_session
+from .session import Session
 from .test_dao_factory import TestDaoFactory
 from .bookmark_dao import Bookmark, BookmarkTopic, BookmarkNote
 
 
 class BookmarkDaoTestCase(unittest.TestCase):
+
     def setUp(self):
-        self.session = get_session()
+        self.session = Session.get()
         self._test_bookmark_ids = []
 
         self._bookmark_id = uuid.uuid4()
@@ -27,8 +28,7 @@ class BookmarkDaoTestCase(unittest.TestCase):
         # Delete test bookmarks
         for bookmark_id in self._test_bookmark_ids:
             self.session.query(Bookmark).filter_by(bookmark_id=bookmark_id).delete()
-        self.session.flush()
-        self.session.commit()
+        Session.close()
 
     def _create_test_bookmark(self):
         """Return Bookmark that has been saved to db."""

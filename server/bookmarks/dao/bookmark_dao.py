@@ -9,7 +9,7 @@ from sqlalchemy.ext.declarative import declarative_base
 import sqlalchemy.orm as sa_orm
 import sqlalchemy.types as sa_types
 
-from .core import get_session
+from .session import Session
 from .uuid_type import UUIDType
 
 
@@ -46,7 +46,7 @@ class Bookmark(Base):
         :param tags: option list of strings that are bookmark topics
         :return: list of Bookmarks; empty list if no Bookmarks are found
         """
-        session = get_session()
+        session = Session.get()
         query = session.query(Bookmark)
         if topics:
             topic_query = session.query(BookmarkTopic.bookmark_id).filter(BookmarkTopic.topic.in_(topics))
@@ -61,7 +61,7 @@ class Bookmark(Base):
         :param bookmark_id: string that is bookmark id
         :return: selected Bookmark or None if no such bookmark exists
         """
-        query = get_session().query(Bookmark).filter_by(bookmark_id=bookmark_id)
+        query = Session.get().query(Bookmark).filter_by(bookmark_id=bookmark_id)
         return query.first()
         
 

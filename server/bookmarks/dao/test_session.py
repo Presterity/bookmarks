@@ -8,8 +8,7 @@ from unittest.mock import patch, Mock
 import sqlalchemy.orm as sa_orm
 from sqlalchemy.sql import text
 
-import bookmarks.dao.core
-from .core import Session
+from .session import Session
 from .settings import PRESTERITY_DB_URL
 
 
