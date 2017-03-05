@@ -49,9 +49,9 @@ def get_bookmark_by_id(bookmark_id):
     """
     bookmark = dao.Bookmark.select_bookmark_by_id(bookmark_id)
     if not bookmark:
-        response_data = {'error': 'bookmark not found'}
+        response_json = ''
         status_code = 404
     else:
-        response_data = ResponseFormatter.format_bookmark(bookmark, version=1702)
+        response_json = jsonify(ResponseFormatter.format_bookmark(bookmark, version=1702))
         status_code = 200
-    return jsonify(response_data), 200 
+    return response_json, status_code
