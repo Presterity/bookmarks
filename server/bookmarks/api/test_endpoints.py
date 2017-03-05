@@ -27,6 +27,11 @@ class BookmarkManagerApiTests(unittest.TestCase):
             uri += '?' + '&'.join(['topic={0}'.format(t) for t in topics])
         return self.app.get(uri)
 
+    def get_response_json(self, response):
+        """Extract response data as JSON.
+        """
+        return json.loads(response.data.decode(encoding='utf-8'))
+
     @patch.object(bookmarks.api.ResponseFormatter, 'format_bookmarks_response')
     @patch.object(bookmarks.dao.Bookmark, 'select_bookmarks')
     def test_get_bookmarks(self, mock_select_bookmarks, mock_format_response):
@@ -41,7 +46,8 @@ class BookmarkManagerApiTests(unittest.TestCase):
         response = self.get_bookmarks()
         
         # Verify response
-        self.assertEqual(mock_response_json, json.loads(response.data.decode(encoding='utf-8')))
+        self.assertEqual(mock_response_json, self.get_response_json(response))
+        self.assertEqual(200, response.status_code)
 
         # Verify mocks
         mock_select_bookmarks.assert_called_once_with(topics=None)
@@ -61,11 +67,27 @@ class BookmarkManagerApiTests(unittest.TestCase):
         response = self.get_bookmarks(topics=['topic_1', 'topic_2'])
         
         # Verify response
-        self.assertEqual(mock_response_json, json.loads(response.data.decode(encoding='utf-8')))
+        self.assertEqual(mock_response_json, self.get_response_json(response))
+        self.assertEqual(200, response.status_code)
 
         # Verify mocks
         mock_select_bookmarks.assert_called_once_with(topics=['topic_1', 'topic_2'])
         mock_format_response.assert_called_once_with(test_bookmarks, version=ANY)
 
+    @patch.object(bookmarks.dao.Bookmark, 'select_bookmarks')
+    def test_get_bookmarks__empty(self, mock_select_bookmarks):
+        """Verify response for empty list of bookmarks.
+        """
+        # Set up mocks and test data
+        mock_select_bookmarks.return_value = []
+        
+        # Make call
+        response = self.get_bookmarks()
+        
+        # Verify response
+        self.assertEqual({'bookmarks': []}, self.get_response_json(response))
+        self.assertEqual(200, response.status_code)
 
+        # Verify mocks
+        mock_select_bookmarks.assert_called_once_with(topics=None)
 
