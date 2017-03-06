@@ -11,16 +11,25 @@ from .path_converters import AnyIntConverter
 from .response_formatter import ResponseFormatter
 
 
-# Create Flask app and set up logging
+# Create Flask app and set up basic logging
 app = Flask(__name__)
 app.logger.setLevel(logging.INFO)
-logger = app.logger
+
 
 # Register custom URL converters
 app.url_map.converters['any_int'] = AnyIntConverter
 
-# End request hook
-#dao.Session.close(commit=True)
+
+# Database actions on startup and around each request
+def before_first_request():
+    dao.Session.initialize()
+
+def before_request():
+    dao.Session.get()
+
+def after_request(response):
+    dao.Session.close(commit=True)
+    return response
 
 
 # API methods / endpoints
