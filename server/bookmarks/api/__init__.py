@@ -7,6 +7,7 @@ from typing import Optional, Any, Callable
 from flask import Flask, jsonify, request
 
 import bookmarks.dao as dao
+from .path_converters import AnyIntConverter
 from .response_formatter import ResponseFormatter
 
 
@@ -15,6 +16,8 @@ app = Flask(__name__)
 app.logger.setLevel(logging.INFO)
 logger = app.logger
 
+# Register custom URL converters
+app.url_map.converters['any_int'] = AnyIntConverter
 
 # End request hook
 #dao.Session.close(commit=True)
@@ -30,8 +33,8 @@ def info():
     """Return structured information about the running application."""
     return jsonify({'nothing_to_see': 'not yet'})
 
-@app.route("/api/1702/bookmark/", methods=['GET'])
-def get_bookmarks():
+@app.route("/api/<any_int(1702):version>/bookmark/", methods=['GET'])
+def get_bookmarks(version=None):
     """Retrieve bookmarks, optionally filtered by topic.
 
     Optional topics are read from query string: topic=...&topic=...
@@ -40,11 +43,11 @@ def get_bookmarks():
     if 'topic' in request.args:
         topics = request.args.getlist('topic')
     bookmarks = dao.Bookmark.select_bookmarks(topics=topics)
-    response_data = ResponseFormatter.format_bookmarks_response(bookmarks, version=1702) 
+    response_data = ResponseFormatter.format_bookmarks_response(bookmarks, version=version) 
     return jsonify(response_data), 200
 
-@app.route("/api/1702/bookmark/<string:bookmark_id>", methods=['GET'])
-def get_bookmark_by_id(bookmark_id):
+@app.route("/api/<any_int(1702):version>/bookmark/<string:bookmark_id>", methods=['GET'])
+def get_bookmark_by_id(bookmark_id, version=None):
     """Retrieve specific bookmark.
     """
     bookmark = dao.Bookmark.select_bookmark_by_id(bookmark_id)
@@ -52,6 +55,9 @@ def get_bookmark_by_id(bookmark_id):
         response_json = ''
         status_code = 404
     else:
-        response_json = jsonify(ResponseFormatter.format_bookmark(bookmark, version=1702))
+        response_json = jsonify(ResponseFormatter.format_bookmark(bookmark, version=version))
         status_code = 200
     return response_json, status_code
+
+
+

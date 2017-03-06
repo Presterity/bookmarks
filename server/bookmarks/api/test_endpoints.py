@@ -18,18 +18,18 @@ class BookmarkManagerApiTests(unittest.TestCase):
         self.app = bookmarks.api.app.test_client()
         self.app.testing = True 
 
-    def get_bookmarks(self, topics=None):
+    def get_bookmarks(self, topics=None, version=1702):
         """Helper method to call Get Bookmarks API with specified topics.
         """
-        uri = '/api/1702/bookmark/'
+        uri = '/api/{0}/bookmark/'.format(version)
         if topics:
             uri += '?' + '&'.join(['topic={0}'.format(t) for t in topics])
         return self.app.get(uri)
 
-    def get_bookmark_by_id(self, bookmark_id):
+    def get_bookmark_by_id(self, bookmark_id, version=1702):
         """Helper method to call Get Bookmarks API with specified topics.
         """
-        return self.app.get('/api/1702/bookmark/{0}'.format(bookmark_id))
+        return self.app.get('/api/{0}/bookmark/{1}'.format(version, bookmark_id))
 
     def get_response_json(self, response):
         """Extract response data as JSON.
@@ -95,6 +95,12 @@ class BookmarkManagerApiTests(unittest.TestCase):
         # Verify mocks
         mock_select_bookmarks.assert_called_once_with(topics=None)
 
+    def test_get_bookmarks__unavailable_version(self):
+        """Verify 404 if invalid version is supplied.
+        """
+        response = self.get_bookmarks(version=1)
+        self.assertEqual(404, response.status_code)
+
     @patch.object(bookmarks.api.ResponseFormatter, 'format_bookmark')
     @patch.object(bookmarks.dao.Bookmark, 'select_bookmark_by_id')
     def test_get_bookmarks_by_id(self, mock_select_bookmark, mock_format_bookmark):
@@ -130,4 +136,10 @@ class BookmarkManagerApiTests(unittest.TestCase):
         # Verify response
         self.assertEqual(404, response.status_code)
         self.assertEqual(b'', response.data)
+
+    def test_get_bookmark_by_id__unavailable_version(self):
+        """Verify 404 if invalid version is supplied.
+        """
+        response = self.get_bookmark_by_id(uuid.uuid4(), version=1)
+        self.assertEqual(404, response.status_code)
 

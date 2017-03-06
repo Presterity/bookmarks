@@ -1,6 +1,7 @@
 Flask
-SQLAlchemy
 mschematool
-tldextract
 psycopg2
 pytz
+SQLAlchemy
+tldextract
+werkzeug
