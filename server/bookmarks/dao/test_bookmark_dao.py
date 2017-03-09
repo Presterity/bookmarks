@@ -158,7 +158,7 @@ class BookmarkMethodTests(BookmarkDaoTestCase):
     def test_select_bookmarks__no_bookmarks(self):
         """Verify empty list returned by Bookmark.select_bookmarks when there are none.
         """
-        self.assertEqual([], Bookmark.select_bookmarks())
+        self.assertEqual(([], None), Bookmark.select_bookmarks())
 
     def test_select_bookmarks(self):
         """Verify Bookmark.select_bookmarks result."""
@@ -170,9 +170,10 @@ class BookmarkMethodTests(BookmarkDaoTestCase):
         self.session.commit()
 
         # Verify expected ids in expected order (ascending by date)
-        selected_bookmarks = Bookmark.select_bookmarks()
+        selected_bookmarks, cursor = Bookmark.select_bookmarks()
         self.assertEqual([yesterday_bookmark.bookmark_id, today_bookmark.bookmark_id],
                          [b.bookmark_id for b in selected_bookmarks])
+        self.assertTrue(isinstance(cursor, str))
 
     def test_select_bookmarks_by_topic(self):
         """Verify Bookmark.select_bookmarks result when topic is specified."""
@@ -188,8 +189,9 @@ class BookmarkMethodTests(BookmarkDaoTestCase):
         self.session.commit()
 
         # Verify selection
-        selected_bookmarks = Bookmark.select_bookmarks(topics=[topic])
+        selected_bookmarks, cursor = Bookmark.select_bookmarks(topics=[topic])
         self.assertEqual([topic_bookmark.bookmark_id], [b.bookmark_id for b in selected_bookmarks])
+        self.assertTrue(isinstance(cursor, str))
 
     def test_select_bookmarks_by_topic__no_matching_bookmarks(self):
         """Verify Bookmark.select_bookmarks result when topic does not match any bookmarks."""
@@ -203,7 +205,7 @@ class BookmarkMethodTests(BookmarkDaoTestCase):
         self.session.commit()
 
         # Verify selection
-        self.assertEqual([], Bookmark.select_bookmarks(topics=[topic]))
+        self.assertEqual(([], None), Bookmark.select_bookmarks(topics=[topic]))
 
     def test_select_bookmarks_by_topic__multiple_topics(self):
         """Verify Bookmark.select_bookmarks result when multiple topics are specified."""
@@ -220,9 +222,10 @@ class BookmarkMethodTests(BookmarkDaoTestCase):
         self.session.commit()
 
         # Verify selection: Should be OR of bookmarks with any specified topic
-        selected_bookmarks = Bookmark.select_bookmarks(topics=topics)
+        selected_bookmarks, cursor = Bookmark.select_bookmarks(topics=topics)
         self.assertEqual(set([topic_zero_bookmark.bookmark_id, topic_one_bookmark.bookmark_id]), 
                          set([b.bookmark_id for b in selected_bookmarks]))
+        self.assertTrue(isinstance(cursor, str))
 
     def test_select_bookmarks_by_topic__multiple_topics__double_match(self):
         """Verify Bookmark.select_bookmarks result dedupes double topic match."""
@@ -234,8 +237,43 @@ class BookmarkMethodTests(BookmarkDaoTestCase):
         self.session.commit()
 
         # Verify selection: Should be length 1
-        selected_bookmarks = Bookmark.select_bookmarks(topics=topics)
+        selected_bookmarks, cursor = Bookmark.select_bookmarks(topics=topics)
         self.assertEqual([double_match_bookmark.bookmark_id], [b.bookmark_id for b in selected_bookmarks])
+        self.assertTrue(isinstance(cursor, str))
+
+    def test_select_bookmarks__cursor(self):
+        """Verify cursor functionality of select_bookmarks."""
+        today = datetime.utcnow().replace(tzinfo=pytz.utc, microsecond=0)
+        today_bookmark = TestDaoFactory.create_bookmark(sort_date=today)
+        yesterday_bookmark_ids = sorted([uuid.uuid4(), uuid.uuid4()])
+        yesterday_bookmark_1 = TestDaoFactory.create_bookmark(sort_date=(today-timedelta(days=1)), bookmark_id=yesterday_bookmark_ids[0])
+        yesterday_bookmark_2 = TestDaoFactory.create_bookmark(sort_date=(today-timedelta(days=1)), bookmark_id=yesterday_bookmark_ids[1])
+        two_days_ago_bookmark = TestDaoFactory.create_bookmark(sort_date=today-timedelta(days=2))
+        saved_bookmarks = [self._save_bookmark(b) for b in [today_bookmark, two_days_ago_bookmark, yesterday_bookmark_2, yesterday_bookmark_1]]
+        self.session.flush()
+        self.session.commit()
+
+        # Expected return order: 
+        #  two_days_ago_bookmark
+        #  yesterday_bookmark_1
+        #  yesterday_bookmark_2
+        #  today_bookmark
+        
+        # Select first two records
+        selected_bookmarks, cursor = Bookmark.select_bookmarks(max_results=2)
+        self.assertEqual([two_days_ago_bookmark.bookmark_id, yesterday_bookmark_1.bookmark_id],
+                         [b.bookmark_id for b in selected_bookmarks])
+        self.assertIsNotNone(cursor)
+
+        # Select next one record
+        selected_bookmarks, cursor = Bookmark.select_bookmarks(cursor=cursor, max_results=1)
+        self.assertEqual([yesterday_bookmark_2.bookmark_id], [b.bookmark_id for b in selected_bookmarks])
+        self.assertIsNotNone(cursor)
+
+        # Select last record
+        selected_bookmarks, cursor = Bookmark.select_bookmarks(cursor=cursor)
+        self.assertEqual([today_bookmark.bookmark_id], [b.bookmark_id for b in selected_bookmarks])
+        self.assertIsNotNone(cursor)
 
     def test_select_bookmark_by_id(self):
         """Verify Bookmark.select_bookmark_by_id."""
