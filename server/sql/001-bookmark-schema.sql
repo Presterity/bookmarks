@@ -81,14 +81,14 @@ CREATE TRIGGER BOOKMARK_TOPICS_AUDIT_UPDATED BEFORE UPDATE ON apps.bookmark_topi
 FOR EACH ROW EXECUTE PROCEDURE set_audit_updated();
 
 
--- Volunteer or application-specified notes on bookmark; i.e. "duplicate of bookmark id 567"
+-- Volunteer or application-specified notes on bookmark; e.g., "duplicate of bookmark id 567"
 DROP TABLE IF EXISTS apps.bookmark_notes CASCADE;
 CREATE TABLE apps.bookmark_notes (
   note_id CHAR(36) NOT NULL PRIMARY KEY,
   bookmark_id CHAR(36) NOT NULL,
   text TEXT NOT NULL,
 
-  -- id of voluteer or application who authored note
+  -- id of volunteer or application who authored note
   author VARCHAR(100) NOT NULL,
 
   -- date available for business logic
