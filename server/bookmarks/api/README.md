@@ -10,6 +10,7 @@ TODO note on API versioning here
 
 A bookmark resource is identified by a UUID and contains the following attributes:
 
+- `bookmark_id` the UUID of the bookmark, which can be used to identify it in various REST calls
 - `url` the url of referenced article
 - `summary` user-supplied summary of article
 - `description` user-supplied description or excerpt of article, usually longer and more detailed than the summary
