@@ -40,7 +40,8 @@ class Bookmark(Base):
     source_item_id = sa.Column(sa.String(50), default=None)
     source_last_updated = sa.Column(sa_types.TIMESTAMP(timezone=True), default=None)
     submitter_id = sa.Column(sa.String(100), default=None)
-    submission_date = sa.Column(sa_types.TIMESTAMP(timezone=True), default=None)
+    created_on = sa.Column(sa_types.TIMESTAMP(timezone=True), default=datetime.utcnow().replace(microsecond=0))
+    submitted_on = sa.Column(sa_types.TIMESTAMP(timezone=True), default=None)
 
     @classmethod
     def _format_cursor(cls, sort_date: datetime, bookmark_id: str) -> str:
@@ -80,10 +81,12 @@ class Bookmark(Base):
           * description: More detailed information about bookmarked content
           * topics: List of strings that are presterity.org topic page names
           * bookmark_id: UUID to be assigned to bookmark; if not provided, database will assign automatically
+          * status: String that is 'new' or 'submitted'
 
         :return: newly created and persisted Bookmark
         :raise: ValueError if required args are not specified
         :raise: ValueError if display_date is not in expected format
+        :raise: ValueError if status is specified and something other than 'new' or 'submitted'
         :raise: ValueError if extra args are specified
 
         """
@@ -93,16 +96,25 @@ class Bookmark(Base):
 
         sort_date, date_format_string = cls._parse_display_date(kwargs.pop('display_date'))
 
-        attrs = {'bookmark_id': uuid.uuid4(),
+        attrs = {'bookmark_id': kwargs.pop('bookmark_id', uuid.uuid4()),
                  'url': kwargs.pop('url'),
                  'summary': kwargs.pop('summary'),
                  'sort_date': sort_date,
                  'display_date_format': date_format_string,
-                 'status': 'submitted'}
+                 'status': 'new'}
+
         if 'description' in kwargs:
-            attrs[description] = kwargs.pop('description')
+            attrs['description'] = kwargs.pop('description')
         if 'topics' in kwargs:
-            attrs['topics'] = [{'topic': t} for t in kwargs.pop('topics') or []]
+            attrs['topics'] = [BookmarkTopic(topic=t) for t in kwargs.pop('topics') or []]
+        if 'status' in kwargs:
+            status = kwargs.pop('status').lower()
+            if status not in ('new', 'submitted'):
+                raise ValueError("Invalid status '{0}' on bookmark creation; must be 'new' or 'submitted'".format(
+                        status))
+            attrs['status'] = status
+            if status == 'submitted':
+                attrs['submitted_on'] = datetime.utcnow().replace(microsecond=0)
         if kwargs:
             raise ValueError("Unexpected arguments provided for create_bookmark: {0}".format(
                     ', '.join(kwargs.keys())))
@@ -180,7 +192,8 @@ class BookmarkTopic(Base):
 
     bookmark_id = sa.Column(UUIDType(), primary_key=True)
     topic = sa.Column(sa.String(100), nullable=False, primary_key=True)
-    created_on = sa.Column(sa_types.TIMESTAMP(timezone=True), nullable=False)
+    created_on = sa.Column(sa_types.TIMESTAMP(timezone=True), nullable=False, 
+                           default=datetime.utcnow().replace(microsecond=0))
     
 
 class BookmarkNote(Base):
@@ -191,7 +204,8 @@ class BookmarkNote(Base):
     bookmark_id = sa.Column(UUIDType(), nullable=False)
     text = sa.Column(sa_types.Text(), nullable=False)
     author = sa.Column(sa.String(100), nullable=False)
-    created_on = sa.Column(sa_types.TIMESTAMP(timezone=True), nullable=False)
+    created_on = sa.Column(sa_types.TIMESTAMP(timezone=True), nullable=False,
+                           default=datetime.utcnow().replace(microsecond=0))
 
 
 # Cascading delete is set up at DB level and is not re-specified here
