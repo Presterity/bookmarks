@@ -6,6 +6,7 @@ python -m unittest -v bookmarks.dao.test_bookmark_dao
 from datetime import datetime, timedelta
 import pytz
 import unittest
+from unittest.mock import patch, Mock
 import uuid
 
 from .session import Session
@@ -148,8 +149,50 @@ class BookmarkTests(BookmarkDaoTestCase):
         self.assertEqual(self._bookmark_id, retrieved_bookmark.bookmark_id)
 
 
-class BookmarkMethodTests(BookmarkDaoTestCase):
-    """Verify behavior of convenience CRUD methods.
+class BookmarkCreateTests(BookmarkDaoTestCase):
+    """Verify create_bookmark behavior."""
+
+    def _create_bookmark(self, **kwargs):
+        """Wrapper around Bookmark.create_bookmark that registers bookmark_id for cleanup."""
+        bookmark = Bookmark.create_bookmark(**kwargs)
+        self._test_bookmark_ids.append(bookmark.bookmark_id)
+        return bookmark
+
+    @patch.object(Bookmark, '_parse_display_date')
+    def test_create_bookmark__simple(self, mock_parse_display_date):
+        """Verify bookmark creation with only required args."""
+        # Set up mocks and test data
+        test_date_format = 'foo'
+        mock_parse_display_date.return_value = (self._sort_date, test_date_format)
+
+        # Create bookmark
+        args = {'summary': self._summary,
+                'url': self._url,
+                'display_date': self._sort_date}
+        bookmark = self._create_bookmark(**args)
+        
+        # Verify result
+        self.assertIsNotNone(bookmark)
+        self.assertIsNotNone(bookmark.bookmark_id)
+        self.assertEqual(self._summary, bookmark.summary)
+        self.assertEqual(self._url, bookmark.url)
+        self.assertEqual(self._sort_date, bookmark.sort_date)
+        self.assertEqual(test_date_format, bookmark.display_date_format)
+        self.assertEqual('submitted', bookmark.status)
+        self.assertIsNone(bookmark.description)
+        self.assertEqual([], bookmark.topics)
+
+        # Verify mocks
+        mock_parse_display_date.assert_called_once_with(self._sort_date)
+
+        # Verify bookmark is persisted to database
+        self.session.flush()
+        self.session.commit()
+        self.assertEqual(bookmark, self._select_bookmark(bookmark.bookmark_id))
+
+
+class BookmarkSelectTests(BookmarkDaoTestCase):
+    """Verify behavior of query methods.
 
     Since Bookmark itself is verified in other tests, this test will use TestDaoFactory
     for convenience.

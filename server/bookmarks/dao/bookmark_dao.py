@@ -4,6 +4,7 @@
 from datetime import datetime
 import logging
 from typing import List, Tuple, Optional
+import uuid
 
 import sqlalchemy as sa
 import sqlalchemy.ext.associationproxy as sa_assoc_proxy
@@ -67,6 +68,53 @@ class Bookmark(Base):
         return sort_date, toks[1]
 
     @classmethod
+    def create_bookmark(cls, **kwargs) -> 'Bookmark':
+        """Create, persist and return new Bookmark object.
+
+        Required **kwargs:
+          * summary: Brief description of bookmarked content
+          * url: Location at which bookmarked content was found
+          * display_date: Date to be associated with bookmarked event, in format %Y.%m[.%d [%H[:%M]]]
+
+        Optional **kwargs:
+          * description: More detailed information about bookmarked content
+          * topics: List of strings that are presterity.org topic page names
+          * bookmark_id: UUID to be assigned to bookmark; if not provided, database will assign automatically
+
+        :return: newly created and persisted Bookmark
+        :raise: ValueError if required args are not specified
+        :raise: ValueError if display_date is not in expected format
+        :raise: ValueError if extra args are specified
+
+        """
+        for arg in ('summary', 'url', 'display_date'):
+            if arg not in kwargs:
+                raise ValueError("Missing required argument '{0}'".format(arg))
+
+        sort_date, date_format_string = cls._parse_display_date(kwargs.pop('display_date'))
+
+        attrs = {'bookmark_id': uuid.uuid4(),
+                 'url': kwargs.pop('url'),
+                 'summary': kwargs.pop('summary'),
+                 'sort_date': sort_date,
+                 'display_date_format': date_format_string,
+                 'status': 'submitted'}
+        if 'description' in kwargs:
+            attrs[description] = kwargs.pop('description')
+        if 'topics' in kwargs:
+            attrs['topics'] = [{'topic': t} for t in kwargs.pop('topics') or []]
+        if kwargs:
+            raise ValueError("Unexpected arguments provided for create_bookmark: {0}".format(
+                    ', '.join(kwargs.keys())))
+
+        new_bookmark = Bookmark(**attrs)
+
+        session = Session.get()
+        saved_bookmark = session.merge(new_bookmark)
+        session.flush()
+        return saved_bookmark
+
+    @classmethod
     def select_bookmarks(cls, topics: List[str]=None, cursor=None, max_results=None) -> Tuple[List['Bookmark'], str]:
         """Select bookmarks, filtering by topics if specified, in ascending order by sort_date.
 
@@ -108,6 +156,22 @@ class Bookmark(Base):
         """
         query = Session.get().query(Bookmark).filter_by(bookmark_id=bookmark_id)
         return query.first()
+
+
+    # private methods
+    
+    @classmethod
+    def _parse_display_date(cls, display_date: str) -> Tuple[datetime, str]:
+        """Parse provided date string into date and format string.
+
+        Returned values are such that calling strftime on the returned date with the 
+        returned format string will reproduce original display date.
+        
+        :param display_date: string that is date in format %Y[.%m[.%d[ %H[:%M]]]]
+        :return: tuple that is parsed date and date format string
+        :raise: ValueError if provided display_date is not in expected form
+        """
+        return (datetime.now(), '')
         
 
 class BookmarkTopic(Base):
