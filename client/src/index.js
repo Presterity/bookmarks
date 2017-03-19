@@ -7,12 +7,7 @@ import sampleBookmarks from './sampleBookmarks';
 
 let root;
 function init() {
-  // fetch('sampleBookmarks.json')
-  // .then(response => response.json())
-  // .then(bookmarks => {
-	  root = render(<App bookmarks={sampleBookmarks}/>, document.body, root);
-  // });
-	// root = render(<App />, document.body, root);
+  root = render(<App bookmarks={sampleBookmarks}/>, document.body, root);
 }
 
 // register ServiceWorker via OfflinePlugin, for prod only:
