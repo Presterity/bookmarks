@@ -247,19 +247,6 @@ class BookmarkCreateTests(BookmarkDaoTestCase):
         self.assertEqual('submitted', bookmark.status)
         self.assertTrue(utcnow <= bookmark.submitted_on)
 
-    def test_create_bookmark__invalid_status(self):
-        """Verify create_bookmark raises if status is other than 'new' or 'submitted'."""
-        utcnow = datetime.utcnow().replace(microsecond=0)
-        args = {'summary': self._summary,
-                'url': self._url,
-                'display_date': self._display_date,
-                'status': 'freida'
-                }
-        self.assertRaisesRegex(ValueError,
-                               "Invalid status 'freida' on bookmark creation; must be 'new' or 'submitted'",
-                               self._create_bookmark,
-                               **args)
-
     def test_create_bookmark__topics(self):
         """Verify Bookmark and Topic creation when topics are specified."""
         self.assertEqual([], self._select_topics())
@@ -276,6 +263,47 @@ class BookmarkCreateTests(BookmarkDaoTestCase):
         self.assertEqual(set(args['topics']), set([t.topic for t in topics]))
         for t in topics:
             self.assertEqual(bookmark.bookmark_id, t.bookmark_id)
+
+    def test_create_bookmark__missing_required_arg(self):
+        """Verify bookmark creation without required args raises."""
+
+        def get_args():
+            return {'summary': self._summary,
+                    'url': self._url,
+                    'display_date': self._sort_date}
+        for required_key in ('summary', 'url', 'display_date'):
+            args = get_args()
+            del args[required_key]
+            self.assertRaisesRegex(ValueError,
+                                   "Missing required argument '{0}'".format(required_key),
+                                   self._create_bookmark,
+                                   **args)
+            
+    @patch.object(Bookmark, '_parse_display_date')
+    def test_create_bookmark__invalid_date_format(self, mock_parse_display_date):
+        """Verify create_bookmark raises if date_format is unrecognized."""
+        mock_parse_display_date.side_effect = ValueError('bad format')
+        args = {'summary': self._summary,
+                'url': self._url,
+                'display_date': self._display_date
+                }
+        self.assertRaisesRegex(ValueError,
+                               'bad format',
+                               self._create_bookmark,
+                               **args)
+
+    def test_create_bookmark__invalid_status(self):
+        """Verify create_bookmark raises if status is other than 'new' or 'submitted'."""
+        args = {'summary': self._summary,
+                'url': self._url,
+                'display_date': self._display_date,
+                'status': 'freida'
+                }
+        self.assertRaisesRegex(ValueError,
+                               "Invalid status 'freida' on bookmark creation; must be 'new' or 'submitted'",
+                               self._create_bookmark,
+                               **args)
+
 
 
 class BookmarkSelectTests(BookmarkDaoTestCase):
