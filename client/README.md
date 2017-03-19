@@ -1,65 +1,26 @@
-# Preact Boilerplate / Starter Kit
+# Presterity Bookmarks app client
 
-[![Build Status](https://travis-ci.org/developit/preact-boilerplate.svg?branch=master)](https://travis-ci.org/developit/preact-boilerplate)
-[![gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/developit/preact)
+## Get started
 
-> :guitar: Ready-to-rock [Preact] starter project, powered by [webpack].
->
-> :rocket: If you're starting a new project using [Preact], you've come to the right place.
-Below is a step-by-step guide that takes you straight from downloading this boilerplate to production.
->
-> **[:boom: View Demo :boom:](https://preact-boilerplate.surge.sh)**
-
-
----
-
-
-# Quick-Start Guide
-
-- [Installation](#installation)
-- [Development Workflow](#development-workflow)
-- [Structure](#structure)
-- [CSS Modules](#css-modules)
-- [Handling URLS](#handling-urls)
-- [React Compatibility](#react-compatibility)
-
-
-## Installation
-
-**1. Clone this repo:**
+**1. Install yarn:**
+ Go to http://yarnpkg.com and follow the instructions for your OS.
+ 
+**2. Install packages:**
 
 ```sh
-git clone --depth 1 https://github.com/developit/preact-boilerplate.git my-app
-cd my-app
+yarn install
 ```
+**NOTE**: Please don't use npm instead of yarn. Without yarn, you aren't guaranteed to be working with the same packages as everyone else.
 
-
-**2. Make it your own:**
-
-```sh
-rm -rf .git && git init && npm init
-```
-
-> :information_source: This re-initializes the repo and sets up your NPM project.
-
-
-**3. Install the dependencies:**
-
-```sh
-npm install
-```
 
 > You're done installing! Now let's get started developing.
 
-
-
 ## Development Workflow
-
 
 **4. Start a live-reload development server:**
 
 ```sh
-npm run dev
+yarn run dev
 ```
 
 > This is a full web server nicely suited to your project. Any time you make changes within the `src` directory, it will rebuild and even refresh your browser.
@@ -67,7 +28,7 @@ npm run dev
 **5. Testing with `mocha`, `karma`, `chai`, `sinon` via `phantomjs`:**
 
 ```sh
-npm test
+yarn test
 ```
 
 > 🌟 This also instruments the code in `src/` using [isparta](https://github.com/douglasduteil/isparta), giving you pretty code coverage statistics at the end of your tests! If you want to see detailed coverage information, a full HTML report is placed into `coverage/`.
@@ -75,22 +36,15 @@ npm test
 **6. Generate a production build in `./build`:**
 
 ```sh
-npm run build
+yarn run build
 ```
 
 > You can now deploy the contents of the `build` directory to production!
->
-> **[Surge.sh](https://surge.sh) Example:** `surge ./build -d my-app.surge.sh`
-> 
-> **[Netlify](https://www.netlify.com/docs/cli/) Example:** `netlify deploy`
->
-> [![Deploy to Netlify](https://www.netlify.com/img/deploy/button.svg)](https://app.netlify.com/start/deploy?repository=https://github.com/developit/preact-boilerplate)
-
 
 **5. Start local production server with [serve](https://github.com/zeit/serve):**
 
 ```sh
-npm start
+yarn start
 ```
 
 > This is to simulate a production (CDN) server with gzip. It just serves up the contents of `./build`.
