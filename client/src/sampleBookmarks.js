@@ -1,4 +1,4 @@
-[
+export default [
   {
     "bookmark_id": 35772439,
     "url": "http://edition.cnn.com/2017/01/23/politics/white-house-website-law-enforcement/index.html",
@@ -249,4 +249,4 @@
       "Trump Business"
     ]
   }
-]
+];

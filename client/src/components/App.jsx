@@ -2,7 +2,7 @@ import { h, Component } from 'preact';
 import { Router } from 'preact-router';
 
 import Header from './header';
-import Home from './home';
+import Home from './Home';
 import Profile from './profile';
 
 export default class App extends Component {
@@ -14,12 +14,12 @@ export default class App extends Component {
 		this.currentUrl = e.url;
 	};
 
-	render() {
+	render(props) {
 		return (
 			<div id="app">
 				<Header />
 				<Router onChange={this.handleRoute}>
-					<Home path="/" />
+					<Home path="/" bookmarks={props.bookmarks}/>
 					<Profile path="/profile/" user="me" />
 					<Profile path="/profile/:user" />
 				</Router>

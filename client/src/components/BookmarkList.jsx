@@ -5,7 +5,8 @@ import { Component, h, render } from 'preact';
 export default class BookmarkList extends Component {
 
   render(props) {
-    const rows = this.props.bookmarks(bookmark => (
+    console.log(props);
+    const rows = props.bookmarks.map(bookmark => (
       <tr id={bookmark.bookmark_id}>
         <td>{bookmark.summary}</td>
         <td>

@@ -2,11 +2,17 @@
 // import 'isomorphic-fetch';
 import { h, render } from 'preact';
 import './style';
-import App from './components/app';
+import App from './components/App';
+import sampleBookmarks from './sampleBookmarks';
 
 let root;
 function init() {
-	root = render(<App />, document.body, root);
+  // fetch('sampleBookmarks.json')
+  // .then(response => response.json())
+  // .then(bookmarks => {
+	  root = render(<App bookmarks={sampleBookmarks}/>, document.body, root);
+  // });
+	// root = render(<App />, document.body, root);
 }
 
 // register ServiceWorker via OfflinePlugin, for prod only:

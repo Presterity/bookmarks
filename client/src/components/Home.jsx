@@ -3,7 +3,7 @@
 import { Component, h, render } from 'preact';
 import BookmarkList from './BookmarkList';
 
-export default class App extends Component {
+export default class Home extends Component {
 
   render(props) {
     return (
