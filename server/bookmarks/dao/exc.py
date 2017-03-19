@@ -1,25 +1,25 @@
 """DAO-level exceptions."""
 
 
-class AnansiDaoError(Exception):
+class DaoError(Exception):
     """Base class for DAO exceptions."""
 
     pass
 
 
-class DuplicateRecordError(AnansiDaoError):
+class DuplicateRecordError(DaoError):
     """Raise if primary key conflict or unique constraint violation occurs."""
 
     pass
 
 
-class InvalidOperationError(AnansiDaoError):
+class InvalidOperationError(DaoError):
     """Raise if requested operation failed for business logic reasons."""
 
     pass
 
 
-class RecordNotFoundError(AnansiDaoError):
+class RecordNotFoundError(DaoError):
     """Raise if requested operation cannot be performed because specified record does not exist."""
 
     pass
