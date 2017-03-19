@@ -1,4 +1,7 @@
 """REST API for the bookmark manager.
+
+All endpoint URLs are versioned with ints that are yymm, approximately indicating when the API was released 
+or updated. Compromise between the human-friendliness of dates and conciseness.
 """
 
 import logging
