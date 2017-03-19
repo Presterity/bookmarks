@@ -2,10 +2,10 @@
 // import 'isomorphic-fetch';
 import { h, render } from 'preact';
 import './style';
+import App from './components/app';
 
 let root;
 function init() {
-	let App = require('./components/app').default;
 	root = render(<App />, document.body, root);
 }
 
