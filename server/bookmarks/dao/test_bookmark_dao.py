@@ -275,6 +275,12 @@ class BookmarkMethodTests(BookmarkDaoTestCase):
         self.assertEqual([today_bookmark.bookmark_id], [b.bookmark_id for b in selected_bookmarks])
         self.assertIsNotNone(cursor)
 
+        # No more records
+        selected_bookmarks, cursor = Bookmark.select_bookmarks(cursor=cursor)
+        self.assertEqual([], selected_bookmarks)
+        self.assertIsNone(cursor)
+        
+
     def test_select_bookmark_by_id(self):
         """Verify Bookmark.select_bookmark_by_id."""
         match_bookmark = TestDaoFactory.create_bookmark()
