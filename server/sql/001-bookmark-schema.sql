@@ -50,7 +50,7 @@ CREATE TABLE apps.bookmarks (
   submitter_id VARCHAR(100) DEFAULT NULL,
   
   -- date on which bookmark was submitted
-  submission_date TIMESTAMPTZ DEFAULT NULL,
+  submission_date TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL,
 
   -- for ops only
   audit_created TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL,
