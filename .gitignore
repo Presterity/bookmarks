@@ -87,3 +87,9 @@ ENV/
 
 # Rope project settings
 .ropeproject
+
+# IDE junk
+.idea
+
+# don't commit libs
+node_modules
