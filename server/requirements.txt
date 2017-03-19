@@ -1,0 +1,7 @@
+Flask
+mschematool
+psycopg2
+pytz
+SQLAlchemy
+tldextract
+werkzeug
