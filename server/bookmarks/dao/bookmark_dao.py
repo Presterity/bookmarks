@@ -4,6 +4,7 @@
 from datetime import datetime
 import logging
 from typing import List, Tuple, Optional
+import uuid
 
 import sqlalchemy as sa
 import sqlalchemy.ext.associationproxy as sa_assoc_proxy
@@ -39,7 +40,8 @@ class Bookmark(Base):
     source_item_id = sa.Column(sa.String(50), default=None)
     source_last_updated = sa.Column(sa_types.TIMESTAMP(timezone=True), default=None)
     submitter_id = sa.Column(sa.String(100), default=None)
-    submission_date = sa.Column(sa_types.TIMESTAMP(timezone=True), default=None)
+    created_on = sa.Column(sa_types.TIMESTAMP(timezone=True), default=datetime.utcnow().replace(microsecond=0))
+    submitted_on = sa.Column(sa_types.TIMESTAMP(timezone=True), default=None)
 
     @classmethod
     def _format_cursor(cls, sort_date: datetime, bookmark_id: str) -> str:
@@ -65,6 +67,64 @@ class Bookmark(Base):
         except ValueError as ex:
             raise ValueError("Invalid cursor format; sort_date '{0}' not in expected format %Y-%m-%dT%H:%M:%S".format(toks[0]))
         return sort_date, toks[1]
+
+    @classmethod
+    def create_bookmark(cls, **kwargs) -> 'Bookmark':
+        """Create, persist and return new Bookmark object.
+
+        Required **kwargs:
+          * summary: Brief description of bookmarked content
+          * url: Location at which bookmarked content was found
+          * display_date: Date to be associated with bookmarked event, in format %Y.%m[.%d [%H[:%M]]]
+
+        Optional **kwargs:
+          * description: More detailed information about bookmarked content
+          * topics: List of strings that are presterity.org topic page names
+          * bookmark_id: UUID to be assigned to bookmark; if not provided, database will assign automatically
+          * status: String that is 'new' or 'submitted'
+
+        :return: newly created and persisted Bookmark
+        :raise: ValueError if required args are not specified
+        :raise: ValueError if display_date is not in expected format
+        :raise: ValueError if status is specified and something other than 'new' or 'submitted'
+        :raise: ValueError if extra args are specified
+
+        """
+        for arg in ('summary', 'url', 'display_date'):
+            if arg not in kwargs:
+                raise ValueError("Missing required argument '{0}'".format(arg))
+
+        sort_date, date_format_string = cls._parse_display_date(kwargs.pop('display_date'))
+
+        attrs = {'bookmark_id': kwargs.pop('bookmark_id', uuid.uuid4()),
+                 'url': kwargs.pop('url'),
+                 'summary': kwargs.pop('summary'),
+                 'sort_date': sort_date,
+                 'display_date_format': date_format_string,
+                 'status': 'new'}
+
+        if 'description' in kwargs:
+            attrs['description'] = kwargs.pop('description')
+        if 'topics' in kwargs:
+            attrs['topics'] = [BookmarkTopic(topic=t) for t in kwargs.pop('topics') or []]
+        if 'status' in kwargs:
+            status = kwargs.pop('status').lower()
+            if status not in ('new', 'submitted'):
+                raise ValueError("Invalid status '{0}' on bookmark creation; must be 'new' or 'submitted'".format(
+                        status))
+            attrs['status'] = status
+            if status == 'submitted':
+                attrs['submitted_on'] = datetime.utcnow().replace(microsecond=0)
+        if kwargs:
+            raise ValueError("Unexpected arguments provided for create_bookmark: {0}".format(
+                    ', '.join(kwargs.keys())))
+
+        new_bookmark = Bookmark(**attrs)
+
+        session = Session.get()
+        saved_bookmark = session.merge(new_bookmark)
+        session.flush()
+        return saved_bookmark
 
     @classmethod
     def select_bookmarks(cls, topics: List[str]=None, cursor=None, max_results=None) -> Tuple[List['Bookmark'], str]:
@@ -108,6 +168,22 @@ class Bookmark(Base):
         """
         query = Session.get().query(Bookmark).filter_by(bookmark_id=bookmark_id)
         return query.first()
+
+
+    # private methods
+    
+    @classmethod
+    def _parse_display_date(cls, display_date: str) -> Tuple[datetime, str]:
+        """Parse provided date string into date and format string.
+
+        Returned values are such that calling strftime on the returned date with the 
+        returned format string will reproduce original display date.
+        
+        :param display_date: string that is date in format %Y[.%m[.%d[ %H[:%M]]]]
+        :return: tuple that is parsed date and date format string
+        :raise: ValueError if provided display_date is not in expected form
+        """
+        return (datetime.now(), '')
         
 
 class BookmarkTopic(Base):
@@ -116,7 +192,8 @@ class BookmarkTopic(Base):
 
     bookmark_id = sa.Column(UUIDType(), primary_key=True)
     topic = sa.Column(sa.String(100), nullable=False, primary_key=True)
-    created_on = sa.Column(sa_types.TIMESTAMP(timezone=True), nullable=False)
+    created_on = sa.Column(sa_types.TIMESTAMP(timezone=True), nullable=False, 
+                           default=datetime.utcnow().replace(microsecond=0))
     
 
 class BookmarkNote(Base):
@@ -127,7 +204,8 @@ class BookmarkNote(Base):
     bookmark_id = sa.Column(UUIDType(), nullable=False)
     text = sa.Column(sa_types.Text(), nullable=False)
     author = sa.Column(sa.String(100), nullable=False)
-    created_on = sa.Column(sa_types.TIMESTAMP(timezone=True), nullable=False)
+    created_on = sa.Column(sa_types.TIMESTAMP(timezone=True), nullable=False,
+                           default=datetime.utcnow().replace(microsecond=0))
 
 
 # Cascading delete is set up at DB level and is not re-specified here
