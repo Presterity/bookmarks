@@ -68,7 +68,7 @@ class BookmarkTests(BookmarkDaoTestCase):
         self._source_item_id = '1234-abc'
         self._source_last_updated = datetime(2017, 2, 7, 23, 10, tzinfo=pytz.utc)
         self._submitter_id = 'aladdin'
-        self._submission_date = datetime.utcnow().replace(tzinfo=pytz.utc)
+        self._submitted_on = datetime.utcnow().replace(tzinfo=pytz.utc)
 
     def test_bookmark__required(self):
         """Verify Bookmark creation with only required data."""
@@ -95,7 +95,7 @@ class BookmarkTests(BookmarkDaoTestCase):
         self.assertEqual('%Y.%m.%d', retrieved_bookmark.display_date_format)
 
         # Verify NULLABLE attributes
-        for attr in ('source', 'source_item_id', 'submitter_id', 'submission_date'):
+        for attr in ('source', 'source_item_id', 'submitter_id', 'submitted_on'):
             self.assertIsNone(getattr(retrieved_bookmark, attr))
 
         q = self.session.query(Bookmark)
@@ -117,7 +117,7 @@ class BookmarkTests(BookmarkDaoTestCase):
             source_item_id=self._source_item_id,
             source_last_updated=self._source_last_updated,
             submitter_id=self._submitter_id,
-            submission_date=self._submission_date)
+            submitted_on=self._submitted_on)
         self._save_bookmark(bookmark)
         bookmarks = self.session.query(Bookmark).all()
         self.assertEqual(1, len(bookmarks))
@@ -132,7 +132,7 @@ class BookmarkTests(BookmarkDaoTestCase):
         self.assertEqual(self._source_item_id, retrieved_bookmark.source_item_id)
         self.assertEqual(self._source_last_updated, retrieved_bookmark.source_last_updated)
         self.assertEqual(self._submitter_id, retrieved_bookmark.submitter_id)
-        self.assertEqual(self._submission_date, retrieved_bookmark.submission_date)
+        self.assertEqual(self._submitted_on, retrieved_bookmark.submitted_on)
 
     def test_bookmark__specify_bookmark_id(self):
         """Verify Bookmark creation with specified bookmark_id."""
