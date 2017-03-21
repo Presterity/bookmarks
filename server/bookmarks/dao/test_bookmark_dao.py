@@ -172,7 +172,6 @@ class BookmarkCreateTests(BookmarkDaoTestCase):
         # Set up mocks and test data
         test_date_format = 'foo'
         mock_parse_display_date.return_value = (self._sort_date, test_date_format)
-        utcnow = datetime.utcnow().replace(microsecond=0)
 
         # Create bookmark
         args = {'summary': self._summary,
@@ -190,7 +189,7 @@ class BookmarkCreateTests(BookmarkDaoTestCase):
         self.assertEqual('new', bookmark.status)
         self.assertIsNone(bookmark.description)
         self.assertEqual([], bookmark.topics)
-        self.assertTrue(utcnow <= bookmark.created_on)
+        self.assertIsNotNone(bookmark.created_on)
         self.assertIsNone(bookmark.submitted_on)
 
         # Verify mocks
@@ -225,7 +224,6 @@ class BookmarkCreateTests(BookmarkDaoTestCase):
 
     def test_create_bookmark__submitted(self):
         """Verify Bookmark creation with status 'submitted'."""
-        utcnow = datetime.utcnow().replace(microsecond=0)
         args = {'summary': self._summary,
                 'url': self._url,
                 'display_date': self._display_date,
@@ -233,7 +231,7 @@ class BookmarkCreateTests(BookmarkDaoTestCase):
                 }
         bookmark = self._create_bookmark(**args)
         self.assertEqual('submitted', bookmark.status)
-        self.assertTrue(utcnow <= bookmark.submitted_on)
+        self.assertIsNotNone(bookmark.submitted_on)
 
     def test_create_bookmark__submitted_ci(self):
         """Verify Bookmark creation with status 'SUBMITTED'."""
