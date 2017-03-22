@@ -304,6 +304,22 @@ class BookmarkCreateTests(BookmarkDaoTestCase):
                                self._create_bookmark,
                                **args)
 
+    def test_create_bookmark__extra_args(self):
+        """Verify create_bookmark raises if unrecognized args are provided.
+
+        Note that even some Bookmark attributes are not allowed as args to create_bookmark.
+        """
+        args = {'summary': self._summary,
+                'url': self._url,
+                'display_date': self._display_date,
+                'sort_date': datetime.utcnow(),
+                'submitted_on': datetime.utcnow(),
+                'ice_cream': 'chocolate'}
+        self.assertRaisesRegex(
+            ValueError,
+            'Unexpected arguments provided for create_bookmark: ice_cream, sort_date, submitted_on',
+            self._create_bookmark,
+            **args)
 
 
 class BookmarkSelectTests(BookmarkDaoTestCase):
