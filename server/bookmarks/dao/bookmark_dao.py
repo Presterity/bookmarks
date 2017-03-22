@@ -80,7 +80,7 @@ class Bookmark(Base):
         Required **kwargs:
           * summary: Brief description of bookmarked content
           * url: Location at which bookmarked content was found
-          * display_date: Date to be associated with bookmarked event, in format %Y.%m[.%d [%H[:%M]]]
+          * display_date: Date to be associated with bookmarked event, in format %Y[.%m[.%d [%H[:%M]]]]
 
         Optional **kwargs:
           * description: More detailed information about bookmarked content
@@ -122,7 +122,7 @@ class Bookmark(Base):
                 attrs['submitted_on'] = datetime.utcnow().replace(microsecond=0)
         if kwargs:
             raise ValueError("Unexpected arguments provided for create_bookmark: {0}".format(
-                    ', '.join(kwargs.keys())))
+                    ', '.join(sorted(kwargs.keys()))))
 
         new_bookmark = Bookmark(**attrs)
 
