@@ -7,7 +7,7 @@ from typing import List, Tuple, Optional
 import uuid
 
 import sqlalchemy as sa
-import sqlalchemy.ext.associationproxy as sa_assoc_proxy
+from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.declarative import declarative_base
 import sqlalchemy.orm as sa_orm
 import sqlalchemy.types as sa_types
@@ -111,7 +111,7 @@ class Bookmark(Base):
         if 'description' in kwargs:
             attrs['description'] = kwargs.pop('description') 
         if 'topics' in kwargs:
-            attrs['topics'] = [BookmarkTopic(topic=t) for t in kwargs.pop('topics') or []]
+            attrs['topic_names'] = kwargs.pop('topics') or []
         if 'status' in kwargs:
             status = kwargs.pop('status').lower()
             if not BookmarkStatus.is_valid_original_status(status):
@@ -235,7 +235,7 @@ class Bookmark(Base):
         return updated_bookmark
 
     def update_status(self, new_status: str):
-        """Update status field of bookmark if allowed.
+        """Update status field of bookmark if allowed. Note that the updated Bookmark is not persisted.
 
         :param new_status: string that is new BookmarkStatus
 
@@ -244,8 +244,8 @@ class Bookmark(Base):
         """
         if not BookmarkStatus.is_valid_status(new_status):
             raise ValueError("Invalid bookmark status '{0}'; must be one of {1}".format(
-                    new_status, ["'{}'".format(s) for s in BookmarkStatus.VALID_STATUSES]))
-        if not BookmarkStatus.is_valid_status_transition(new_status):
+                    new_status, ', '.join(["'{}'".format(s) for s in BookmarkStatus.VALID_STATUSES])))
+        if not BookmarkStatus.is_valid_status_transition(self.status, new_status):
             raise ValueError("Invalid bookmark status transition '{0}' -> '{1}'".format(self.status, new_status))
 
         self.status = new_status
@@ -253,7 +253,7 @@ class Bookmark(Base):
             self.submitted_on = datetime.utcnow().replace(microsecond=0)
 
     def update_topics(self, topics: List[str]):
-        """Update topics associated with bookmark.
+        """Update topics associated with bookmark. Note that the updated Bookmark is not persisted.
 
         If topic from provided list is not currently associated with bookmark, add it.
         If topic currently associated with bookmark is not in provided list, delete it.
@@ -263,9 +263,9 @@ class Bookmark(Base):
         if not topics:
             self.topics = []
         else:
-            current_topics = set([t.topic for t in self.topics or []])
+            current_topics = set(self.topic_names)
             updated_topics = set(topics)
-            self.topics = filter(self.topics, lambda t: t.topic in updated_topics)
+            self.topics = list(filter(lambda t: t.topic in updated_topics, self.topics))
             for new_topic in updated_topics.difference(current_topics):
                 self.topics.append(BookmarkTopic(topic=new_topic))
 
@@ -312,10 +312,16 @@ class BookmarkNote(Base):
 Bookmark.topics = sa_orm.relationship(
     BookmarkTopic,
     primaryjoin=Bookmark.bookmark_id==BookmarkTopic.bookmark_id,
-    order_by=lambda: (BookmarkTopic.topic, BookmarkTopic.created_on))
+    order_by=lambda: (BookmarkTopic.topic, BookmarkTopic.created_on),
+    cascade="all, delete-orphan")
+
+Bookmark.topic_names = association_proxy(
+    'topics', 'topic',
+    creator=lambda topic_name: BookmarkTopic(topic=topic_name))
 
 # Cascading delete is set up at DB level and is not re-specified here
 Bookmark.notes = sa_orm.relationship(
     BookmarkNote,
     primaryjoin=Bookmark.bookmark_id==BookmarkNote.bookmark_id,
-    order_by=lambda: BookmarkNote.created_on)
+    order_by=lambda: BookmarkNote.created_on,
+    cascade="all, delete-orphan")

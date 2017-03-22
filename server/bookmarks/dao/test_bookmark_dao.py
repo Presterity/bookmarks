@@ -11,7 +11,7 @@ import uuid
 
 from .session import Session
 from .test_dao_factory import TestDaoFactory
-from .bookmark_dao import Bookmark, BookmarkTopic, BookmarkNote
+from .bookmark_dao import Bookmark, BookmarkTopic, BookmarkNote, BookmarkStatus
 
 
 class BookmarkDaoTestCase(unittest.TestCase):
@@ -607,6 +607,141 @@ class BookmarkUpdateTests(BookmarkDaoTestCase):
                                test_bookmark.bookmark_id, 
                                **attrs)
 
+    @patch.object(BookmarkStatus, 'is_valid_status_transition')
+    @patch.object(BookmarkStatus, 'is_valid_status')
+    def test_update_status(self, mock_is_valid_status, mock_is_valid_transition):
+        """Verify update_status method when status and transition are valid."""
+        # Set up mocks
+        mock_is_valid_status.return_value = True
+        mock_is_valid_transition.return_value = True
+        mock_new_status = 'new_status'
+
+        # Create test bookmark and verify expected status
+        test_bookmark = self._create_test_bookmark()
+        self.assertEqual(BookmarkStatus.NEW, test_bookmark.status)
+
+        # Update status
+        test_bookmark.update_status(mock_new_status)
+        self.assertEqual(mock_new_status, test_bookmark.status)
+
+        # Verify mocks
+        mock_is_valid_status.assert_called_once_with(mock_new_status)
+        mock_is_valid_transition.assert_called_once_with(BookmarkStatus.NEW, mock_new_status)
+
+    def test_update_status__submitted(self):
+        """Verify update_status method sets submitted_on when status is updated to 'submitted.'"""
+        # Create test bookmark and verify expected status
+        test_bookmark = self._create_test_bookmark()
+        self.assertEqual(BookmarkStatus.NEW, test_bookmark.status)
+        self.assertIsNone(test_bookmark.submitted_on)
+
+        # Update status
+        test_bookmark.update_status(BookmarkStatus.SUBMITTED)
+        self.assertEqual(BookmarkStatus.SUBMITTED, test_bookmark.status)
+        self.assertIsNotNone(test_bookmark.submitted_on)
+
+    def test_update_status__submitted_2x(self):
+        """Verify update_status method only sets submitted_on once."""
+        # Create test bookmark and verify expected status
+        test_bookmark = self._create_test_bookmark()
+        self.assertEqual(BookmarkStatus.NEW, test_bookmark.status)
+        self.assertIsNone(test_bookmark.submitted_on)
+
+        # Update status
+        test_bookmark.update_status(BookmarkStatus.SUBMITTED)
+        self.assertEqual(BookmarkStatus.SUBMITTED, test_bookmark.status)
+        self.assertIsNotNone(test_bookmark.submitted_on)
+        orig_submitted_on = test_bookmark.submitted_on
+
+        # Update status to accepted
+        test_bookmark.update_status(BookmarkStatus.ACCEPTED)
+        self.assertEqual(BookmarkStatus.ACCEPTED, test_bookmark.status)
+        self.assertEqual(orig_submitted_on, test_bookmark.submitted_on)
+
+        # Update status back to submitted_on
+        test_bookmark.update_status(BookmarkStatus.SUBMITTED)
+        self.assertEqual(BookmarkStatus.SUBMITTED, test_bookmark.status)
+        self.assertEqual(orig_submitted_on, test_bookmark.submitted_on)
+        
+    @patch.object(BookmarkStatus, 'is_valid_status', Mock(return_value=False))
+    def test_update_status__invalid_status(self):
+        """Verify update_status method when status is invalid."""
+        # Set up mocks
+        mock_new_status = 'new_status'
+
+        # Create test bookmark
+        test_bookmark = self._create_test_bookmark()
+
+        # Update status
+        self.assertRaisesRegex(
+            ValueError,
+            "Invalid bookmark status 'new_status'; must be one of 'new', 'submitted', 'accepted', 'rejected'",
+            test_bookmark.update_status,
+            mock_new_status)
+
+    @patch.object(BookmarkStatus, 'is_valid_status_transition', Mock(return_value=False))
+    @patch.object(BookmarkStatus, 'is_valid_status', Mock(return_value=True))
+    def test_update_status__invalid_transition(self):
+        """Verify update_status method when transition is invalid."""
+        # Set up mocks
+        mock_new_status = 'new_status'
+
+        # Create test bookmark 
+        test_bookmark = self._create_test_bookmark()
+
+        # Update status
+        self.assertRaisesRegex(
+            ValueError,
+            "Invalid bookmark status transition 'new' -> 'new_status'",
+            test_bookmark.update_status,
+            mock_new_status)
+
+    def test_update_topics(self):
+        """Verify that topics can be added, removed, and left alone."""
+        test_bookmark = self._create_test_bookmark(topic_names=['keeper', 'loser'])
+        self.assertEqual(2, len(test_bookmark.topics))
+        self.assertEqual(set(['keeper', 'loser']), set([t.topic for t in test_bookmark.topics]))
+        keeper_created_on = [t.created_on for t in test_bookmark.topics if t.topic == 'keeper'][0]
+
+        # Update topics
+        test_bookmark.update_topics(['new', 'keeper'])
+        self.assertEqual(2, len(test_bookmark.topics))
+        self.assertEqual(set(['keeper', 'new']), set([t.topic for t in test_bookmark.topics]))
+        self.assertEqual(keeper_created_on, [t.created_on for t in test_bookmark.topics if t.topic == 'keeper'][0])
+        self.session.merge(test_bookmark)
+
+        # Verify that dropped topic is really gone
+        topics = self.session.query(BookmarkTopic).filter_by(bookmark_id=test_bookmark.bookmark_id).all()
+        self.assertEqual(set(['keeper', 'new']), set([t.topic for t in topics]))
+
+    def test_update_topics__clear_topics__empty_list(self):
+        """Verify that topics can be cleared by updating to empty list."""
+        test_bookmark = self._create_test_bookmark(topic_names=['apple', 'banana'])
+        self.assertEqual(2, len(test_bookmark.topics))
+
+        # Update topics to empty list
+        test_bookmark.update_topics([])
+        self.assertEqual(0, len(test_bookmark.topics))
+        self.session.merge(test_bookmark)
+
+        # Verify that dropped topics are really gone
+        topics = self.session.query(BookmarkTopic).filter_by(bookmark_id=test_bookmark.bookmark_id).all()
+        self.assertEqual(0, len(topics))
+
+    def test_update_topics__clear_topics__None(self):
+        """Verify that topics can be cleared by updating to None."""
+        test_bookmark = self._create_test_bookmark(topic_names=['apple', 'banana'])
+        self.assertEqual(2, len(test_bookmark.topics))
+
+        # Update topics to empty list
+        test_bookmark.update_topics(None)
+        self.assertEqual(0, len(test_bookmark.topics))
+        self.session.merge(test_bookmark)
+
+        # Verify that dropped topics are really gone
+        topics = self.session.query(BookmarkTopic).filter_by(bookmark_id=test_bookmark.bookmark_id).all()
+        self.assertEqual(0, len(topics))
+
 
 class BookmarkTopicTests(BookmarkDaoTestCase):
     """Verify BookmarkTopic ORM."""
@@ -634,6 +769,19 @@ class BookmarkTopicTests(BookmarkDaoTestCase):
         self.assertEqual(1, len(topics))
         self.assertEqual(self._topic, topics[0].topic)
         self.assertEqual(self._created_on, topics[0].created_on)
+
+    def test_bookmark_topic__association_proxy(self):
+        """Verify BookmarkTopic creation via Bookmark.topic_names."""
+        # Create and save bookmark first because of FK relationship
+        test_bookmark = self._create_test_bookmark()
+        test_bookmark.topic_names = [self._topic]
+        self.session.merge(test_bookmark)
+        self.session.flush()
+        
+        topics = self._select_bookmark_topics(self._bookmark_id)
+        self.assertEqual(1, len(topics))
+        self.assertEqual(self._topic, topics[0].topic)
+        self.assertIsNotNone(topics[0].created_on)
 
     def test_bookmark_topic__delete_leaves_bookmark(self):
         """Verify BookmarkTopic deletion leaves parent Bookmark intact."""
