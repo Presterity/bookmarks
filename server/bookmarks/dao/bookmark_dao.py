@@ -86,7 +86,7 @@ class Bookmark(Base):
           * description: More detailed information about bookmarked content
           * topics: List of strings that are presterity.org topic page names
           * bookmark_id: UUID to be assigned to bookmark; if not provided, database will assign automatically
-          * status: String that is 'new' or 'submitted'
+          * status: String that is 'new' or 'submitted'; default is 'new'
 
         :return: newly created and persisted Bookmark
         :raise: ValueError if required args are not specified
@@ -99,17 +99,17 @@ class Bookmark(Base):
             if arg not in kwargs:
                 raise ValueError("Missing required argument '{0}'".format(arg))
 
-        sort_date, date_format_string = cls._parse_display_date(kwargs.pop('display_date'))
+        sort_date, display_date_format = cls._parse_display_date(kwargs.pop('display_date'))
 
         attrs = {'bookmark_id': kwargs.pop('bookmark_id', uuid.uuid4()),
                  'url': kwargs.pop('url'),
                  'summary': kwargs.pop('summary'),
                  'sort_date': sort_date,
-                 'display_date_format': date_format_string,
+                 'display_date_format': display_date_format,
                  'status': BookmarkStatus.NEW}
 
         if 'description' in kwargs:
-            attrs['description'] = kwargs.pop('description')
+            attrs['description'] = kwargs.pop('description') 
         if 'topics' in kwargs:
             attrs['topics'] = [BookmarkTopic(topic=t) for t in kwargs.pop('topics') or []]
         if 'status' in kwargs:
@@ -204,17 +204,17 @@ class Bookmark(Base):
         # Verify that required bookmark data is not being unset
         for attr in ('url', 'summary', 'display_date', 'status'):
             if attr in kwargs and not kwargs[attr]:
-                raise ValueError("Cannot provide empty value or None for bookmark.{0}".format(attr))
+                raise ValueError("Cannot provide empty value or None for bookmark {0}".format(attr))
 
         # Update simple attributes
-        for attr in [a for a in ('url', 'summary', 'description') if attr in kwargs]:
-            setattr(bookmark, attr, kwargs.pop(attr))
+        for attr in [a for a in ('url', 'summary', 'description') if a in kwargs]:
+            setattr(bookmark, attr, kwargs.pop(attr) or None)
 
         # If display_date is specified, it must be in expected format
         if 'display_date' in kwargs:
-            sort_date, date_format_string = cls._parse_display_date(kwargs.pop('display_date'))
+            sort_date, display_date_format = cls._parse_display_date(kwargs.pop('display_date'))
             bookmark.sort_date = sort_date
-            bookmark.date_format_string = date_format_string
+            bookmark.display_date_format = display_date_format
 
         # If status is specified, it must be valid and supported transition
         if 'status' in kwargs:
@@ -226,8 +226,8 @@ class Bookmark(Base):
 
         # If anything is left in kwargs, raise an error
         if kwargs:
-            raise ValueError("Unexpected arguments provided for create_bookmark: {0}".format(
-                    ', '.join(kwargs.keys())))
+            raise ValueError("Unexpected arguments provided for update_bookmark: {0}".format(
+                    ', '.join(sorted(kwargs.keys()))))
 
         session = Session.get()
         updated_bookmark = session.merge(bookmark)

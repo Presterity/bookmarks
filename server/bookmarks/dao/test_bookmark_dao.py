@@ -31,12 +31,14 @@ class BookmarkDaoTestCase(unittest.TestCase):
             self.session.query(Bookmark).filter_by(bookmark_id=bookmark_id).delete()
         Session.close()
 
-    def _create_test_bookmark(self):
+    def _create_test_bookmark(self, **kwargs):
         """Return Bookmark that has been saved to db."""
-        self._save_bookmark(Bookmark(bookmark_id=self._bookmark_id,
-                                     url=self._url,
-                                     summary=self._summary,
-                                     sort_date=self._sort_date))
+        attrs = {'bookmark_id': self._bookmark_id,
+                 'url': self._url,
+                 'summary': self._summary,
+                 'sort_date': self._sort_date}
+        attrs.update(**kwargs)
+        self._save_bookmark(Bookmark(**attrs))
         return self._select_bookmark(self._bookmark_id)
 
     def _save_bookmark(self, bookmark):
@@ -459,6 +461,135 @@ class BookmarkSelectTests(BookmarkDaoTestCase):
 
         # Verify selection
         self.assertIsNone(Bookmark.select_bookmark_by_id(uuid.uuid4()))
+
+
+class BookmarkUpdateTests(BookmarkDaoTestCase):
+    """Verify update_bookmark behavior."""
+
+    def test_update__simple(self):
+        """Verify update of url, summary and description."""
+        url = "http://latimes.com/news/article.html"
+        summary = "Good article about weaving"
+        description = "Learn how to weave your own fabric"
+
+        # Create test bookmark and make sure our test data does not collide
+        test_bookmark = self._create_test_bookmark()
+        self.assertNotEqual(url, test_bookmark.url)
+        self.assertNotEqual(summary, test_bookmark.summary)
+        self.assertNotEqual(description, test_bookmark.description)
+
+        # Update bookmark
+        updated_bookmark = Bookmark.update_bookmark(
+            test_bookmark.bookmark_id,
+            summary=summary,
+            url=url,
+            description=description)
+        self.assertIsNotNone(updated_bookmark)
+        self.assertEqual(test_bookmark.bookmark_id, updated_bookmark.bookmark_id)
+
+        # Clear session and re-select bookmark to verify that it was persisted
+        self.session.flush()
+        self.session.commit()
+        selected_bookmark = self._select_bookmark(test_bookmark.bookmark_id)
+        self.assertIsNotNone(selected_bookmark)
+
+        # Verify changed and unchanged attributes
+        for bookmark in (updated_bookmark, selected_bookmark):
+            self.assertEqual(url, bookmark.url)
+            self.assertEqual(summary, bookmark.summary)
+            self.assertEqual(description, bookmark.description)
+
+            # Verify that everything else stayed the same
+            for attr in ('sort_date', 'display_date_format', 'status', 'created_on',
+                         'submitted_on', 'topics'):
+                self.assertEqual(getattr(test_bookmark, attr), getattr(bookmark, attr))
+                                                    
+    def test_update__clear_required_attr(self):
+        """Verify that attempt to clear url, summary, or display_date_format raises."""
+        # Create test bookmark
+        test_bookmark = self._create_test_bookmark()
+
+        # Attempt to clear required data
+        for attr in ('url', 'summary', 'display_date', 'status'):
+            for empty_val in ('', None):
+                self.assertRaisesRegex(ValueError,
+                                       "Cannot provide empty value or None for bookmark {0}".format(attr),
+                                       Bookmark.update_bookmark,
+                                       test_bookmark.bookmark_id, 
+                                       **{attr: empty_val})
+
+    def test_update__clear_optional_attr(self):
+        """Verify that optional attributes can be cleared."""
+        # Create test bookmark
+        test_bookmark = self._create_test_bookmark(description='hi')
+        self.assertEqual('hi', test_bookmark.description)
+
+        # Clear description
+        for empty_val in ('', None):
+            updated_bookmark = Bookmark.update_bookmark(test_bookmark.bookmark_id, description=empty_val)
+            self.assertIsNone(updated_bookmark.description)
+        
+    @patch.object(Bookmark, '_parse_display_date')
+    def test_update__display_date(self, mock_parse_display_date):
+        """Verify results and calls made when display_date is updated."""
+
+        # Create test bookmark
+        test_bookmark = self._create_test_bookmark()
+        
+        # Set up mocks
+        new_sort_date = test_bookmark.sort_date + timedelta(hours=12)
+        new_format = 'foo'
+        mock_parse_display_date.return_value = (new_sort_date, new_format)
+
+        # Update display_date
+        updated_bookmark = Bookmark.update_bookmark(test_bookmark.bookmark_id, display_date='something')
+        self.assertEqual(new_sort_date, updated_bookmark.sort_date)
+        self.assertEqual(new_format, updated_bookmark.display_date_format)
+
+        # Verify mock
+        mock_parse_display_date.assert_called_once_with('something')
+
+    @patch.object(Bookmark, 'update_status')
+    def test_update__status(self, mock_update_status):
+        """Verify that appropriate call is made when status is updated."""
+
+        # Create test bookmark
+        test_bookmark = self._create_test_bookmark()
+        
+        # Update status
+        mock_status = Mock(name='updated_status')
+        updated_bookmark = Bookmark.update_bookmark(test_bookmark.bookmark_id, status=mock_status)
+
+        # Verify mock
+        mock_update_status.assert_called_once_with(mock_status.lower())
+
+    @patch.object(Bookmark, 'update_topics')
+    def test_update__topics(self, mock_update_topics):
+        """Verify that appropriate call is made when topics are updated."""
+
+        # Create test bookmark
+        test_bookmark = self._create_test_bookmark()
+        
+        # Update topics
+        mock_topics = Mock(name='updated_topics')
+        updated_bookmark = Bookmark.update_bookmark(test_bookmark.bookmark_id, topics=mock_topics)
+
+        # Verify mock
+        mock_update_topics.assert_called_once_with(mock_topics)
+
+    def test_update__other_attrs(self):
+        """Verify that attempt to update other attributes raises."""
+        # Create test bookmark
+        test_bookmark = self._create_test_bookmark()
+
+        attrs = {'sort_date': datetime.utcnow(), 
+                 'foo': 'hi',
+                 'submitted_on': datetime.utcnow()}
+        self.assertRaisesRegex(ValueError,
+                               "Unexpected arguments provided for update_bookmark: foo, sort_date, submitted_on",
+                               Bookmark.update_bookmark,
+                               test_bookmark.bookmark_id, 
+                               **attrs)
 
 
 class BookmarkTopicTests(BookmarkDaoTestCase):
