@@ -6,6 +6,7 @@ python -m unittest -v bookmarks.dao.test_bookmark_dao
 from datetime import datetime, timedelta
 import pytz
 import unittest
+from unittest.mock import patch, Mock
 import uuid
 
 from .session import Session
@@ -67,7 +68,7 @@ class BookmarkTests(BookmarkDaoTestCase):
         self._source_item_id = '1234-abc'
         self._source_last_updated = datetime(2017, 2, 7, 23, 10, tzinfo=pytz.utc)
         self._submitter_id = 'aladdin'
-        self._submission_date = datetime.utcnow().replace(tzinfo=pytz.utc)
+        self._submitted_on = datetime.utcnow().replace(tzinfo=pytz.utc)
 
     def test_bookmark__required(self):
         """Verify Bookmark creation with only required data."""
@@ -94,7 +95,7 @@ class BookmarkTests(BookmarkDaoTestCase):
         self.assertEqual('%Y.%m.%d', retrieved_bookmark.display_date_format)
 
         # Verify NULLABLE attributes
-        for attr in ('source', 'source_item_id', 'submitter_id', 'submission_date'):
+        for attr in ('source', 'source_item_id', 'submitter_id', 'submitted_on'):
             self.assertIsNone(getattr(retrieved_bookmark, attr))
 
         q = self.session.query(Bookmark)
@@ -116,7 +117,7 @@ class BookmarkTests(BookmarkDaoTestCase):
             source_item_id=self._source_item_id,
             source_last_updated=self._source_last_updated,
             submitter_id=self._submitter_id,
-            submission_date=self._submission_date)
+            submitted_on=self._submitted_on)
         self._save_bookmark(bookmark)
         bookmarks = self.session.query(Bookmark).all()
         self.assertEqual(1, len(bookmarks))
@@ -131,7 +132,7 @@ class BookmarkTests(BookmarkDaoTestCase):
         self.assertEqual(self._source_item_id, retrieved_bookmark.source_item_id)
         self.assertEqual(self._source_last_updated, retrieved_bookmark.source_last_updated)
         self.assertEqual(self._submitter_id, retrieved_bookmark.submitter_id)
-        self.assertEqual(self._submission_date, retrieved_bookmark.submission_date)
+        self.assertEqual(self._submitted_on, retrieved_bookmark.submitted_on)
 
     def test_bookmark__specify_bookmark_id(self):
         """Verify Bookmark creation with specified bookmark_id."""
@@ -148,8 +149,181 @@ class BookmarkTests(BookmarkDaoTestCase):
         self.assertEqual(self._bookmark_id, retrieved_bookmark.bookmark_id)
 
 
-class BookmarkMethodTests(BookmarkDaoTestCase):
-    """Verify behavior of convenience CRUD methods.
+class BookmarkCreateTests(BookmarkDaoTestCase):
+    """Verify create_bookmark behavior."""
+
+    def setUp(self):
+        super(BookmarkCreateTests, self).setUp()
+        self._display_date = self._sort_date.strftime("%Y.%m.%d")
+
+    def _create_bookmark(self, **kwargs):
+        """Wrapper around Bookmark.create_bookmark that registers bookmark_id for cleanup."""
+        bookmark = Bookmark.create_bookmark(**kwargs)
+        self._test_bookmark_ids.append(bookmark.bookmark_id)
+        return bookmark
+
+    def _select_topics(self):
+        """Select all topics."""
+        return self.session.query(BookmarkTopic).all()
+
+    @patch.object(Bookmark, '_parse_display_date')
+    def test_create_bookmark__simple(self, mock_parse_display_date):
+        """Verify bookmark creation with only required args."""
+        # Set up mocks and test data
+        test_date_format = 'foo'
+        mock_parse_display_date.return_value = (self._sort_date, test_date_format)
+        utcnow = datetime.utcnow().replace(microsecond=0)
+
+        # Create bookmark
+        args = {'summary': self._summary,
+                'url': self._url,
+                'display_date': self._sort_date}
+        bookmark = self._create_bookmark(**args)
+        
+        # Verify result
+        self.assertIsNotNone(bookmark)
+        self.assertIsNotNone(bookmark.bookmark_id)
+        self.assertEqual(self._summary, bookmark.summary)
+        self.assertEqual(self._url, bookmark.url)
+        self.assertEqual(self._sort_date, bookmark.sort_date)
+        self.assertEqual(test_date_format, bookmark.display_date_format)
+        self.assertEqual('new', bookmark.status)
+        self.assertIsNone(bookmark.description)
+        self.assertEqual([], bookmark.topics)
+        self.assertTrue(utcnow <= bookmark.created_on)
+        self.assertIsNone(bookmark.submitted_on)
+
+        # Verify mocks
+        mock_parse_display_date.assert_called_once_with(self._sort_date)
+
+        # Verify bookmark is persisted to database
+        self.session.flush()
+        self.session.commit()
+        self.assertEqual(bookmark, self._select_bookmark(bookmark.bookmark_id))
+
+    def test_create_bookmark__bookmark_id(self):
+        """Verify bookmark creation with specified bookmark_id."""
+        # Create bookmark
+        bookmark_id = uuid.uuid4()
+        args = {'summary': self._summary,
+                'url': self._url,
+                'display_date': self._display_date,
+                'bookmark_id': bookmark_id
+                }
+        bookmark = self._create_bookmark(**args)
+        self.assertEqual(bookmark_id, bookmark.bookmark_id)
+
+    def test_create_bookmark__description(self):
+        """Verify Bookmark creation with description."""
+        args = {'summary': self._summary,
+                'url': self._url,
+                'display_date': self._display_date,
+                'description': 'eeny meeny miney mo'
+                }
+        bookmark = self._create_bookmark(**args)
+        self.assertEqual('eeny meeny miney mo', bookmark.description)
+
+    def test_create_bookmark__submitted(self):
+        """Verify Bookmark creation with status 'submitted'."""
+        utcnow = datetime.utcnow().replace(microsecond=0)
+        args = {'summary': self._summary,
+                'url': self._url,
+                'display_date': self._display_date,
+                'status': 'submitted'
+                }
+        bookmark = self._create_bookmark(**args)
+        self.assertEqual('submitted', bookmark.status)
+        self.assertTrue(utcnow <= bookmark.submitted_on)
+
+    def test_create_bookmark__submitted_ci(self):
+        """Verify Bookmark creation with status 'SUBMITTED'."""
+        utcnow = datetime.utcnow().replace(microsecond=0)
+        args = {'summary': self._summary,
+                'url': self._url,
+                'display_date': self._display_date,
+                'status': 'SUBMITTED'
+                }
+        bookmark = self._create_bookmark(**args)
+        self.assertEqual('submitted', bookmark.status)
+        self.assertTrue(utcnow <= bookmark.submitted_on)
+
+    def test_create_bookmark__topics(self):
+        """Verify Bookmark and Topic creation when topics are specified."""
+        self.assertEqual([], self._select_topics())
+        args = {'summary': self._summary,
+                'url': self._url,
+                'display_date': self._display_date,
+                'topics': ['ada', 'fortran', 'pascal']
+                }
+        bookmark = self._create_bookmark(**args)
+        self.assertEqual(set(args['topics']), set([t.topic for t in bookmark.topics]))
+
+        # Verify that topics were created
+        topics = self._select_topics()
+        self.assertEqual(set(args['topics']), set([t.topic for t in topics]))
+        for t in topics:
+            self.assertEqual(bookmark.bookmark_id, t.bookmark_id)
+
+    def test_create_bookmark__missing_required_arg(self):
+        """Verify bookmark creation without required args raises."""
+
+        def get_args():
+            return {'summary': self._summary,
+                    'url': self._url,
+                    'display_date': self._sort_date}
+        for required_key in ('summary', 'url', 'display_date'):
+            args = get_args()
+            del args[required_key]
+            self.assertRaisesRegex(ValueError,
+                                   "Missing required argument '{0}'".format(required_key),
+                                   self._create_bookmark,
+                                   **args)
+            
+    @patch.object(Bookmark, '_parse_display_date')
+    def test_create_bookmark__invalid_date_format(self, mock_parse_display_date):
+        """Verify create_bookmark raises if date_format is unrecognized."""
+        mock_parse_display_date.side_effect = ValueError('bad format')
+        args = {'summary': self._summary,
+                'url': self._url,
+                'display_date': self._display_date
+                }
+        self.assertRaisesRegex(ValueError,
+                               'bad format',
+                               self._create_bookmark,
+                               **args)
+
+    def test_create_bookmark__invalid_status(self):
+        """Verify create_bookmark raises if status is other than 'new' or 'submitted'."""
+        args = {'summary': self._summary,
+                'url': self._url,
+                'display_date': self._display_date,
+                'status': 'freida'
+                }
+        self.assertRaisesRegex(ValueError,
+                               "Invalid status 'freida' on bookmark creation; must be 'new' or 'submitted'",
+                               self._create_bookmark,
+                               **args)
+
+    def test_create_bookmark__extra_args(self):
+        """Verify create_bookmark raises if unrecognized args are provided.
+
+        Note that even some Bookmark attributes are not allowed as args to create_bookmark.
+        """
+        args = {'summary': self._summary,
+                'url': self._url,
+                'display_date': self._display_date,
+                'sort_date': datetime.utcnow(),
+                'submitted_on': datetime.utcnow(),
+                'ice_cream': 'chocolate'}
+        self.assertRaisesRegex(
+            ValueError,
+            'Unexpected arguments provided for create_bookmark: ice_cream, sort_date, submitted_on',
+            self._create_bookmark,
+            **args)
+
+
+class BookmarkSelectTests(BookmarkDaoTestCase):
+    """Verify behavior of query methods.
 
     Since Bookmark itself is verified in other tests, this test will use TestDaoFactory
     for convenience.

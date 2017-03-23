@@ -49,8 +49,9 @@ CREATE TABLE apps.bookmarks (
   -- id of person who submitted bookmark; might be email, Twitter handle, or something else
   submitter_id VARCHAR(100) DEFAULT NULL,
   
-  -- date on which bookmark was submitted
-  submission_date TIMESTAMPTZ DEFAULT NULL,
+  -- dates on which bookmark was created and, perhaps later, submitted
+  created_on TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL,
+  submitted_on TIMESTAMPTZ DEFAULT NULL,
 
   -- for ops only
   audit_created TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP NOT NULL,

@@ -25,7 +25,7 @@ class ResponseFormatterTests(unittest.TestCase):
             'source_item_id': '1357',
             'source_last_updated': datetime.datetime(2017, 1, 1, tzinfo=pytz.utc),
             'submitter_id': 'frodo',
-            'submission_date': datetime.datetime.utcnow().replace(tzinfo=pytz.utc),
+            'submitted_on': datetime.datetime.utcnow().replace(tzinfo=pytz.utc),
             }
 
     def test_format_bookmark__no_topics(self):
