@@ -5,7 +5,6 @@ or updated. Compromise between the human-friendliness of dates and conciseness.
 """
 
 import logging
-from typing import Optional, Any, Callable
 
 from flask import Flask, jsonify, request
 from flask_api import status
@@ -14,9 +13,6 @@ from werkzeug.exceptions import BadRequest
 import bookmarks.dao as dao
 from .path_converters import AnyIntConverter
 from .response_formatter import ResponseFormatter
-from .date_parser import  DateParser, DateParseError
-
-import bookmarks.dao as dao
 
 # Create Flask app and set up basic logging
 app = Flask(__name__)
@@ -53,7 +49,7 @@ def info():
     return jsonify({'nothing_to_see': 'not yet'})
 
 
-@app.route("/api/<any_int(1702):version>/bookmark/", methods=['GET'])
+@app.route("/api/<any_int(1702):version>/bookmarks/", methods=['GET'])
 def get_bookmarks(version=None):
     """Retrieve bookmarks, optionally filtered by topic.
 
@@ -67,9 +63,11 @@ def get_bookmarks(version=None):
     return jsonify(response_data), status.HTTP_200_OK
 
 
-@app.route("/api/<any_int(1702):version>/bookmark/", methods=['POST'])
-def post_bookmarks(version=None):
-    """Create a new bookmark andd assign it a new UUID.
+@app.route("/api/<any_int(1702):version>/bookmarks/", methods=['POST'])
+@app.route("/api/<any_int(1702):version>/bookmarks/<string:bookmark_id>", methods=['PUT'])
+def post_bookmarks(bookmark_id=None, version=None):
+    # TODO why not support creating a batch of bookmarks in POST? Request body would have an array of them.
+    """Create a new bookmark and assign it a new UUID if one is not provided.
 
     Expected request body:
     {
@@ -80,50 +78,29 @@ def post_bookmarks(version=None):
       "topics"      [OPT]: [<string>, ...]
     }
     """
-    # TODO much of this logic can be shared by the PUT method (put_bookmarks)
-
     # returns None if mimetype is not application/json. Throws BadRequest exception on malformed JSON.
     bookmark_json = request.get_json()
     if bookmark_json:
-        bookmark = dao.Bookmark()
+        if bookmark_id:
+            bookmark_json['bookmark_id'] = bookmark_id
         try:
-            bookmark.summary = getattr(bookmark_json, 'summary')
-            bookmark.url = getattr(bookmark_json, 'url')
-            display_date = getattr(bookmark_json, 'display_date')
-        except AttributeError:
+            bookmark = dao.Bookmark.create_bookmark(**bookmark_json)
+        except ValueError:
             # issue 400 response when an expected attribute is missing
             # TODO include message specific to the failure?
             raise BadRequest()
-
-        try:
-            # parse display date to get sort_date and display_date_format
-            sort_date, date_format = DateParser.parse_date(display_date)
-            bookmark.sort_date = sort_date
-            bookmark.display_date_format = date_format
-        except DateParseError:
-            # issue 400 response display date can't be parsed
-            # TODO include message specific to the failure?
-            raise BadRequest()
-
-        if hasattr(bookmark_json, 'description'):
-            bookmark.description = getattr(bookmark_json, 'description')
-
-        if hasattr(bookmark_json, 'topics'):
-            # TODO set up topics object
-            pass
-
-        # TODO persist bookmark and/or topics here
-
         status_code = status.HTTP_200_OK
-        response_data = ResponseFormatter.format_bookmark(bookmark, version=version)
+        response_data = {
+            'bookmarks': [ResponseFormatter.format_bookmark(bookmark, version=version)]
+        }
     else:
         response_data = {}
-        status_code = status.HTTP_404_NOT_FOUND
+        status_code = status.HTTP_400_BAD_REQUEST
 
     return jsonify(response_data), status_code
 
 
-@app.route("/api/<any_int(1702):version>/bookmark/<string:bookmark_id>", methods=['GET'])
+@app.route("/api/<any_int(1702):version>/bookmarks/<string:bookmark_id>", methods=['GET'])
 def get_bookmark_by_id(bookmark_id, version=None):
     """Retrieve specific bookmark.
     """

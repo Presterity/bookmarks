@@ -4,7 +4,7 @@
 import datetime
 import unittest
 
-from bookmarks.api.date_parser import DateParser, DateParseError
+from bookmarks.dao.date_parser import DateParser, DateParseError
 
 
 class DateParserTests(unittest.TestCase):

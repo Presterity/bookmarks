@@ -4,7 +4,9 @@ This document describes the REST API for the bookmark manager
 
 ## API versioning
 
-TODO note on API versioning here
+The API URIs will include a version in the form of yymm. This is concise, human friendly, and continuously increasing. 
+If we ever really mess up and need to make two backwards incompatible changes to an API in the same month, we can just 
+fudge it by jumping forward a month. The initial version of the API is 1702.
 
 ## HTTP headers
 
@@ -40,13 +42,12 @@ refreshed in data store
 
 A submission object can contain the following fields:
 - `submitter_id` identifier of the person who submitted bookmark; might be email, Twitter handle, or something else
-- `submission_date` date on which bookmark was submitted
 
 ### Get bookmark
 
 Bookmarks are retrieved by their UUID, which is put in the placeholder `<bookmark_id>`
  
-`GET /api/<version>/bookmark/<bookmark_id>`
+`GET /api/<version>/bookmarks/<bookmark_id>`
 
 The response body will contain JSON that looks like this:
 
@@ -66,7 +67,7 @@ The response body will contain JSON that looks like this:
 
 ### Create bookmark
 
-`POST /api/<version>/bookmark`
+`POST /api/<version>/bookmarks/`
 
 The JSON post body contains bookmark fields to be inserted into the DB. The service will assign a UUID which will be 
 given back in the response. The expected format is the following. A question mark (`?`) after a field means that the 
@@ -85,8 +86,7 @@ field is optional. All other fields are required.
     "last_updated": <str>?
   }?,
   "submission"  : {
-    "submitter_id"       : <str>?,
-    "submission_date"    : <str>?,
+    "submitter_id"       : <str>?
   }?
   "topics"             : [<str>, ...]?,
   "notes"              : [<str>, ...]?,
@@ -95,7 +95,7 @@ field is optional. All other fields are required.
 
 ### Update a bookmark
 
-`PUT /api/<version>/bookmark/<bookmark_id>`
+`PUT /api/<version>/bookmarks/<bookmark_id>`
 
 The fields in the request body will overwrite the corresponding database fields for the bookmark. Fields omitted will
 be left unchanged. The request format matches that of create, except some fields are not allowed. Allowed fields
@@ -104,43 +104,12 @@ see their APIs.
 
 ### Delete a bookmark
 
-`DELETE /api/<version>/bookmark/<bookmark_id>`
+`DELETE /api/<version>/bookmarks/<bookmark_id>`
 
-### Add one or more topics to a bookmark
-
-This resource adds topics to a bookmark. If a topic is given that is already attached to the bookmark, it will be
-ignored.
-
-`POST /api/<version>/bookmark/<bookmark_id>/topics`
-
-The request body looks like this:
-
-```
-{
-  "topics": [<str>, ...]
-}
-```
-
-### Remove one or more topics from a bookmark
-
-TODO determine whether flask/client libs will support message body in DELETE request. If not, break into multiple
-requests or make it a POST.
-
-`DELETE /api/<version>/bookmark/<bookmark_id>/topics`
-
-The request body looks like this:
-
-```
-{
-  "topics": [<str>, ...]
-}
-```
-
-When the above request is made, each of the specified topics are removed from the bookmark.
 
 ### Get notes for a bookmark
 
-`GET /api/<version>/bookmark/<bookmark_id>/notes`
+`GET /api/<version>/bookmarks/<bookmark_id>/notes/`
 
 Get all notes for a bookmark. The response body looks like this:
 
@@ -160,7 +129,7 @@ Get all notes for a bookmark. The response body looks like this:
 
 ### Add notes to a bookmark
 
-`POST /api/<version>/bookmark/<bookmark_id>/notes`
+`POST /api/<version>/bookmarks/<bookmark_id>/notes/`
 
 The request body looks like this:
 
@@ -175,13 +144,13 @@ includes the UUID for each note.
 
 ### Remove a note from a bookmark
 
-`DELETE /api/<version>/note/<note_id>`
+`DELETE /api/<version>/notes/<note_id>`
 
 When the above request is made, the specified note is removed from the bookmark.
 
 ### Edit a note on a bookmark
 
-`PUT /api/<version>/note/<note_id>`
+`PUT /api/<version>/notes/<note_id>`
 
 The request body looks like this:
 

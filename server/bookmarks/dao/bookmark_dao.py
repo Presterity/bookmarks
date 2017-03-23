@@ -13,6 +13,7 @@ import sqlalchemy.orm as sa_orm
 import sqlalchemy.types as sa_types
 
 from .session import Session
+from .date_parser import DateParser, DateParseError
 from .uuid_type import UUIDType
 
 log = logging.getLogger(__name__)
@@ -94,7 +95,11 @@ class Bookmark(Base):
             if arg not in kwargs:
                 raise ValueError("Missing required argument '{0}'".format(arg))
 
-        sort_date, date_format_string = cls._parse_display_date(kwargs.pop('display_date'))
+        # parse display date to get sort_date and display_date_format
+        try:
+            sort_date, date_format_string = DateParser.parse_date(kwargs.pop('display_date'))
+        except DateParseError as parse_error:
+            raise ValueError(str(parse_error))
 
         attrs = {'bookmark_id': kwargs.pop('bookmark_id', uuid.uuid4()),
                  'url': kwargs.pop('url'),
@@ -170,21 +175,6 @@ class Bookmark(Base):
         return query.first()
 
 
-    # private methods
-    
-    @classmethod
-    def _parse_display_date(cls, display_date: str) -> Tuple[datetime, str]:
-        """Parse provided date string into date and format string.
-
-        Returned values are such that calling strftime on the returned date with the 
-        returned format string will reproduce original display date.
-        
-        :param display_date: string that is date in format %Y[.%m[.%d[ %H[:%M]]]]
-        :return: tuple that is parsed date and date format string
-        :raise: ValueError if provided display_date is not in expected form
-        """
-        return (datetime.now(), '')
-        
 
 class BookmarkTopic(Base):
     __tablename__ = 'bookmark_topics'
