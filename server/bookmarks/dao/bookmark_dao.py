@@ -132,6 +132,21 @@ class Bookmark(Base):
         return saved_bookmark
 
     @classmethod
+    def delete_bookmark(cls, bookmark_id) -> None:
+        """Delete bookmark. 
+
+        If requested bookmark does not exist, do not raise. Fair assumption is that
+        bookmark did exist and was already deleted. In any case, the desired result of
+        the bookmark not existing is True if it isn't there in the first place.
+
+        :param bookmark_id: UUID 
+        """
+        if not bookmark_id:
+            raise ValueError("Missing required argument 'bookmark_id'")
+        Session.get().query(Bookmark).filter_by(bookmark_id=bookmark_id).delete()
+        
+
+    @classmethod
     def select_bookmarks(cls, topics: List[str]=None, cursor=None, max_results=None) -> Tuple[List['Bookmark'], str]:
         """Select bookmarks, filtering by topics if specified, in ascending order by sort_date.
 

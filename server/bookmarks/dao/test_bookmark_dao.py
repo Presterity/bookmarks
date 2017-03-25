@@ -743,6 +743,28 @@ class BookmarkUpdateTests(BookmarkDaoTestCase):
         self.assertEqual(0, len(topics))
 
 
+class BookmarkDeleteTests(BookmarkDaoTestCase):
+    """Verify Bookmark.delete_bookmark."""
+
+    def test_delete(self):
+        """Verify that bookmark is deleted."""
+        test_bookmark = self._create_test_bookmark()
+        self.session.flush()
+        self.session.commit()
+        self.assertIsNotNone(self._select_bookmark(test_bookmark.bookmark_id))
+                             
+        Bookmark.delete_bookmark(test_bookmark.bookmark_id)
+        self.session.flush()
+        self.session.commit()
+        self.assertIsNone(self._select_bookmark(test_bookmark.bookmark_id))
+
+    def test_delete__no_such_bookmark(self):
+        """Verify that delete_bookmark does no harm if bookmark does not exist."""
+        Bookmark.delete_bookmark(uuid.uuid4())
+        self.session.flush()
+        self.session.commit()
+
+
 class BookmarkTopicTests(BookmarkDaoTestCase):
     """Verify BookmarkTopic ORM."""
 
