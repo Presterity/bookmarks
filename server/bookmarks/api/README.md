@@ -9,7 +9,7 @@ page and from the internal Bookmark Manager tool.
 
 ## API versioning
 
-The API URIs will include a version in the form of yymm. This is concise, human friendly, and continuously increasing. 
+The API URIs will include a version in the form of `<yymm>`. This is concise, human friendly, and continuously increasing. 
 If we ever really mess up and need to make two backwards incompatible changes to an API in the same month, we can just 
 fudge it by jumping forward a month. The initial version of the API is 1702.
 
@@ -35,13 +35,19 @@ Common HTTP status codes return by this API are:
 
 TBD - retry behavior when 503 is received by the client
 
+## UUIDs
+
+Individual resources (such as bookmarks) are identified by UUIDs. We use version 4 RFC 4122 identifiers consisting
+ of 32 hexadecimal digits interspersed with 4 dashes. For detailed information about these UUIDs and how they are
+ generated, see the [python UUID docs](https://docs.python.org/3.6/library/uuid.html).
+
 ## Bookmarks
 
 A bookmark resource is identified by a UUID and contains the following attributes:
 
 - `bookmark_id` the UUID of the bookmark, which can be used to identify it in various REST calls
 - `url` the url of referenced article (e.g., 'cnn.com')
-- `tld` the top-level domain of th eURL
+- `tld` the top-level domain of the URL
 - `summary` user-supplied summary of article
 - `description` user-supplied description or excerpt of article, usually longer and more detailed than the summary
 - `display_date` the date of event that is the topic of the article to be used for sorting in a timeline. The date
@@ -64,7 +70,7 @@ query to pick up where the previous result set left off.
 
 Retrieves one bookmark, by its UUID, which is put in the placeholder `<bookmark_id>`
  
-`GET /api/<version>/bookmarks/<bookmark_id>`
+`GET /api/<yymm>/bookmarks/<bookmark_id>`
 
 The response body will contain JSON that looks like this:
 
@@ -142,7 +148,7 @@ if the id is to be assigned by the server. Bookmark updates are always PUT opera
 
 ### Create bookmark
 
-`POST /api/<version>/bookmarks/`
+`POST /api/<yymm>/bookmarks/`
 
 The JSON post body contains information about a new bookmark that is added to the database. The expected format of the
 POST body is the following. A question mark (`?`) after a field means that the field is optional. All other fields are 
@@ -160,7 +166,7 @@ required.
 
 ### Update a bookmark, or create with pre-determined UUID
 
-`PUT /api/<version>/bookmarks/<bookmark_id>`
+`PUT /api/<yymm>/bookmarks/<bookmark_id>`
 
 The fields in the request body will overwrite the corresponding database fields for the bookmark. Fields omitted will
 be left unchanged. Fields provided that are empty or blank will unset corresponding database fields. The request format 
@@ -168,7 +174,7 @@ matches that of POST, except that when updating an existing bookmark, all fields
 
 ### Delete a bookmark
 
-`DELETE /api/<version>/bookmarks/<bookmark_id>`
+`DELETE /api/<yymm>/bookmarks/<bookmark_id>`
 
 Since the intent of the DELETE is to remove the bookmark, the service responds with status code 204 whether the
 `<bookmark_id>` exists at the time of the request or not.
@@ -182,7 +188,7 @@ _**Note: these APIs are not implemented yet**_
 
 ### Get notes for a bookmark
 
-`GET /api/<version>/bookmarks/<bookmark_id>/notes/`
+`GET /api/<yymm>/bookmarks/<bookmark_id>/notes/`
 
 Get all notes for a bookmark. The response body looks like this:
 
@@ -202,7 +208,7 @@ Get all notes for a bookmark. The response body looks like this:
 
 ### Add notes to a bookmark
 
-`POST /api/<version>/bookmarks/<bookmark_id>/notes/`
+`POST /api/<yymm>/bookmarks/<bookmark_id>/notes/`
 
 The request body looks like this:
 
@@ -217,13 +223,13 @@ includes the UUID for each note.
 
 ### Remove a note from a bookmark
 
-`DELETE /api/<version>/notes/<note_id>`
+`DELETE /api/<yymm>/notes/<note_id>`
 
 When the above request is made, the specified note is removed from the bookmark.
 
 ### Edit a note on a bookmark
 
-`PUT /api/<version>/notes/<note_id>`
+`PUT /api/<yymm>/notes/<note_id>`
 
 The request body looks like this:
 
