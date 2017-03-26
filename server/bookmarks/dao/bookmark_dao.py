@@ -235,7 +235,7 @@ class Bookmark(Base):
 
         # If display_date is specified, it must be in expected format
         if 'display_date' in kwargs:
-            sort_date, display_date_format = cls._parse_display_date(kwargs.pop('display_date'))
+            sort_date, display_date_format = DateParser.parse_date(kwargs.pop('display_date'))
             bookmark.sort_date = sort_date
             bookmark.display_date_format = display_date_format
 

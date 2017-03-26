@@ -1,6 +1,11 @@
 # Bookmark Manager REST API
 
-This document describes the REST API for the bookmark manager
+This document describes the REST API for managing bookmarks.
+
+## API Clients
+
+The Bookmark Manager APIs will be called from the presterity.org website to produce the timeline section of each topic 
+page and from the internal Bookmark Manager tool.
 
 ## API versioning
 
@@ -10,42 +15,54 @@ fudge it by jumping forward a month. The initial version of the API is 1702.
 
 ## HTTP headers
 
-TODO expected HTTP headers, e.g., how to authenticate with this API -- OAuth2?
+Requests that have a JSON body must be accompanied by a `Content-Type application/json` header.
 
-## Error codes
+## HTTP status codes
 
-TODO general comments about error codes coming from the API. Document HTTP-level error codes that might be expected.
-Each API may have additional application-level error codes in the response body.
+Common HTTP status codes return by this API are:
 
-## Bookmark CRUD
+| status code | action             | description |
+|-------------|--------------------|-------------|
+| 200         | N/A                | ok          |
+| 204         | N/A                | no content or empty results set|
+| 400         | none               | the request isn't formatted correctly or contains invalid content. Indicates a client-side misuse of an API that should be fixed.|
+| 401         | obtain credentials | client is not authenticated or authorized to access the resource. Obtain valid credentials before re-trying.|
+| 404         | none               | the requested a resource was not found (e.g., no bookmark with a given ID)|
+| 500         | none               | the request triggered a bug in the server. Don't retry.|
+| 503         | retry              | server is temporarily unavailable. Retry the request (see retries)|
+
+### 503 retries
+
+TBD - retry behavior when 503 is received by the client
+
+## Bookmarks
 
 A bookmark resource is identified by a UUID and contains the following attributes:
 
 - `bookmark_id` the UUID of the bookmark, which can be used to identify it in various REST calls
-- `url` the url of referenced article
+- `url` the url of referenced article (e.g., 'cnn.com')
+- `tld` the top-level domain of th eURL
 - `summary` user-supplied summary of article
 - `description` user-supplied description or excerpt of article, usually longer and more detailed than the summary
 - `display_date` the date of event that is the topic of the article to be used for sorting in a timeline. The date
 should be as specific as possible. Valid formats are: `%Y.%m.%d %H:%M` (e.g., `2017.03.17 09:23`), `%Y.%m.%d %H`, 
 `%Y.%m.%d`, `%Y.%m`, `%Y`.
-- `status` the status of bookmark; e.g. 'not relevant', 'duplicate', 'accepted', etc.
-- `source` object containing information about the source of the bookmark
-- `submission` object containing information about the bookmark submission 
+- `status` the status of bookmark; e.g. 'new', 'submitted', 'accepted', etc.
 - `topics` the topics associated with bookmark; bookmark will appear in timeline on these topic pages
 - `notes` volunteer or application-specified notes on bookmark; e.g., "duplicate of bookmark id 567" 
 
-A source object can contain the following fields:
-- `name` the name of the source, e.g., 'raindrop'
-- `item_id` the external identifier of the bookmark given by the source
-- `last_updated` the last date the bookmark was updated from its source; used to decide if bookmark needs to be 
-refreshed in data store
+## Get bookmarks APIs
 
-A submission object can contain the following fields:
-- `submitter_id` identifier of the person who submitted bookmark; might be email, Twitter handle, or something else
+To populate timelines on presterity.org topic pages, bookmarks must be queryable by topic and ordered by date. To 
+support a potential overall timeline, the bookmarks must be queryable by date range. 
 
-### Get bookmark
+Paging is supported for all query APIs that return multiple bookmarks. Paging is implemented using cursors, 
+strings that are opaque to the client and that the server can interpret to use in a SELECT statement for an ordered 
+query to pick up where the previous result set left off.
 
-Bookmarks are retrieved by their UUID, which is put in the placeholder `<bookmark_id>`
+### GET bookmark by UUID
+
+Retrieves one bookmark, by its UUID, which is put in the placeholder `<bookmark_id>`
  
 `GET /api/<version>/bookmarks/<bookmark_id>`
 
@@ -55,23 +72,81 @@ The response body will contain JSON that looks like this:
 {
   "bookmark_id" : <str>,
   "description" : <str>,
-  "display_date": <str that is date for display, e.g. '2017.01'>,
+  "display_date": <str>,
   "summary"     : <str>,
-  "sort_date"   : <str that is utc date in isoformat>,
   "status"      : <str>,
   "topics"      : [<str>, ...],
-  "tld"         : <str that is top-level domain, e.g. 'cnn.com'>,
+  "tld"         : <str>,
   "url"         : <str>
 }
 ```
+
+This endpoint returns status code 404 if there is no bookmark with the UUID provided.
+
+### GET bookmarks by topic
+
+Retrieves all bookmarks with at least one of a list of topics. If no topics are provided, all bookmarks are returned.
+
+`GET /api/<yymm>/bookmarks/?topic=<topic1>&topic=<topic2>&...`
+
+Optional query arguments:
+
+* one or more topic=<topic> arguments where topic is the name of a presterity.org topic page
+* count=<int> where count is the maximum number of results to return; a default max will be enforced
+* cursor=<string> where the string is a token provided in the previous response
+
+Response status codes:
+
+* 200 OK: bookmarks found and returned
+* 204 No Content: no bookmarks found
+
+Response JSON:
+
+```
+{
+  "bookmarks"  : [<Bookmark JSON>, …]  # ordered ascending by sort_date
+  "total_count": <int>
+  "next_cursor": <string>
+}
+```
+
+### GET bookmarks by date range
+
+`GET /api/1702/bookmarks/?start=<yymmdd>`
+
+Optional query arguments:
+
+* end=<yyyymmdd> to specify the end of the date range
+* count=<int> where count is the maximum number of results to return; a default max will be enforced
+* cursor=<string> where the string is a token provided in the previous response
+
+Response status codes:
+
+* 200 OK: bookmarks found and returned
+* 204 No Content: no bookmarks found
+
+Response JSON:
+
+```
+{
+  "bookmarks"  : [<Bookmark JSON>, …]  # ordered ascending by sort_date
+  "total_count": <int>
+  "next_cursor": <string>
+}
+```
+
+## Create, Update and Delete APIs
+
+A new bookmark may be created by a PUT operation, if a UUID for the bookmarks is specified, or by a POST operation, 
+if the id is to be assigned by the server. Bookmark updates are always PUT operations. Bookmarks are deleted using DELETE.
 
 ### Create bookmark
 
 `POST /api/<version>/bookmarks/`
 
-The JSON post body contains bookmark fields to be inserted into the DB. The service will assign a UUID which will be 
-given back in the response. The expected format is the following. A question mark (`?`) after a field means that the 
-field is optional. All other fields are required.
+The JSON post body contains information about a new bookmark that is added to the database. The expected format of the
+POST body is the following. A question mark (`?`) after a field means that the field is optional. All other fields are 
+required.
 
 ```
 {
@@ -79,33 +154,31 @@ field is optional. All other fields are required.
   "summary"     : <str>,
   "display_date": <str>,  
   "description" : <str>?,
-  "status"      : <str>?,
-  "source"      : {
-    "name"        : <str>?,
-    "item_id"     : <str>?,
-    "last_updated": <str>?
-  }?,
-  "submission"  : {
-    "submitter_id"       : <str>?
-  }?
-  "topics"             : [<str>, ...]?,
-  "notes"              : [<str>, ...]?,
+  "topics"      : [<str>, ...]?,
 ```
 
 
-### Update a bookmark
+### Update a bookmark, or create with pre-determined UUID
 
 `PUT /api/<version>/bookmarks/<bookmark_id>`
 
 The fields in the request body will overwrite the corresponding database fields for the bookmark. Fields omitted will
-be left unchanged. The request format matches that of create, except some fields are not allowed. Allowed fields
-are `url`, `summary`, `display_date`, `description`, `status`, `source`, `submission`. To update topics and notes, 
-see their APIs.
+be left unchanged. Fields provided that are empty or blank will unset corresponding database fields. The request format 
+matches that of POST, except that when updating an existing bookmark, all fields are optional.
 
 ### Delete a bookmark
 
 `DELETE /api/<version>/bookmarks/<bookmark_id>`
 
+Since the intent of the DELETE is to remove the bookmark, the service responds with status code 204 whether the
+`<bookmark_id>` exists at the time of the request or not.
+
+## Notes APIs
+
+Notes contain free-form, supplementary information about bookmarks visible only to the Presterity team. These APIs can
+add, remove or update notes on a bookmark.
+
+_**Note: these APIs are not implemented yet**_
 
 ### Get notes for a bookmark
 
