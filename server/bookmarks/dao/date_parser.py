@@ -8,8 +8,6 @@ from typing import Tuple
 
 class DateParser(object):
 
-    # TODO this probably belongs somewhere besides under api/
-
     _formats = [
         "%Y.%m.%d %H:%M",
         "%Y.%m.%d %H",
