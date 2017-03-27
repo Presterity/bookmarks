@@ -8,3 +8,5 @@ build:
     - mkdir -p shippable/testresults
 
     - nosetests server --with-xunit --xunit-file=shippable/testresults/nosetests.xml
+
+after_success: git push -f git@heroku.com:presterity-api-stage.git master
