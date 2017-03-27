@@ -1,0 +1,10 @@
+language: python
+python:
+  - 3.2
+
+build:
+  ci:
+    - "pip install -r server/requirements.txt"
+    - mkdir -p shippable/testresults
+
+    - nosetests server --with-xunit --xunit-file=shippable/testresults/nosetests.xml
