@@ -49,26 +49,26 @@ def info():
     return jsonify({'nothing_to_see': 'not yet'})
 
 
-@app.route("/api/<any_version:version>/bookmarks/", methods=['GET'])
+@app.route("/api/<any_version():version>/bookmarks/", methods=['GET'])
 def get_bookmarks(version=None):
     return Handlers.get_bookmarks(request, version)
 
 
-@app.route("/api/<any_version:version>/bookmarks/<string:bookmark_id>", methods=['GET'])
+@app.route("/api/<any_version():version>/bookmarks/<string:bookmark_id>", methods=['GET'])
 def get_bookmark_by_id(bookmark_id, version):
     return Handlers.get_bookmark_by_id(bookmark_id, version)
 
 
-@app.route("/api/<any_version:version>/bookmarks/", methods=['POST'])
+@app.route("/api/<any_version():version>/bookmarks/", methods=['POST'])
 def post_bookmark(version=None):
     return Handlers.post_bookmark(request, version)
 
 
-@app.route("/api/<any_version:version>/bookmarks/<string:bookmark_id>", methods=['PUT'])
+@app.route("/api/<any_version():version>/bookmarks/<string:bookmark_id>", methods=['PUT'])
 def put_bookmark(bookmark_id, version):
     return Handlers.put_bookmark(request, bookmark_id, version)
 
 
-@app.route("/api/<any_version:version>/bookmarks/<string:bookmark_id>", methods=['DELETE'])
+@app.route("/api/<any_version():version>/bookmarks/<string:bookmark_id>", methods=['DELETE'])
 def delete_bookmark(bookmark_id, version):
     return Handlers.delete_bookmark(bookmark_id, version)

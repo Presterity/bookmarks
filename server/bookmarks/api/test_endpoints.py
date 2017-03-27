@@ -18,18 +18,21 @@ class BookmarkManagerApiTests(unittest.TestCase):
         self.app = bookmarks.api.app.test_client()
         self.app.testing = True 
 
-    def get_bookmarks(self, topics=None, version=1702):
+    def get_bookmarks(self, topics=None, cursor=None, version=1702):
         """Helper method to call Get Bookmarks API with specified topics.
         """
-        uri = '/api/{0}/bookmark/'.format(version)
+        uri = '/api/{0}/bookmarks/'.format(version)
         if topics:
             uri += '?' + '&'.join(['topic={0}'.format(t) for t in topics])
+
+        if cursor:
+            uri += '&cursor={0}'.format(cursor)
         return self.app.get(uri)
 
     def get_bookmark_by_id(self, bookmark_id, version=1702):
         """Helper method to call Get Bookmarks API with specified topics.
         """
-        return self.app.get('/api/{0}/bookmark/{1}'.format(version, bookmark_id))
+        return self.app.get('/api/{0}/bookmarks/{1}'.format(version, bookmark_id))
 
     def get_response_json(self, response):
         """Extract response data as JSON.
@@ -42,8 +45,9 @@ class BookmarkManagerApiTests(unittest.TestCase):
         """Verify success scenario for retrieving bookmarks with no topics.
         """
         # Set up mocks and test data
+        mock_cursor = 'bW9ja19jdXJzb3I=' # base64 encoding of 'mock_cursor'
         mock_bookmarks = [Mock(name='bookmark_1'), Mock(name='bookmark_2')]
-        mock_select_bookmarks.return_value = mock_bookmarks
+        mock_select_bookmarks.return_value = (mock_bookmarks, mock_cursor)
         mock_format_response.return_value = mock_response_json = {'test_key': 'test_value'}
         
         # Make call
@@ -54,7 +58,7 @@ class BookmarkManagerApiTests(unittest.TestCase):
         self.assertEqual(mock_response_json, self.get_response_json(response))
 
         # Verify mocks
-        mock_select_bookmarks.assert_called_once_with(topics=None)
+        mock_select_bookmarks.assert_called_once_with(topics=None, cursor=None, max_results=None)
         mock_format_response.assert_called_once_with(mock_bookmarks, version=ANY)
 
     @patch.object(bookmarks.api.ResponseFormatter, 'format_bookmarks_response')

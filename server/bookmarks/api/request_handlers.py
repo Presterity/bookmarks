@@ -32,7 +32,7 @@ class Handlers(object):
     """
 
     # replacement characters for '+' and '/' in base64 encoding so it can be included in URLs
-    _alt_base64_chars = '$@'
+    _alt_base64_chars = b'$@'
 
     @classmethod
     def get_bookmarks(cls, request: Request, version: int=None) -> Tuple[Union[Response, str], int]:
@@ -225,7 +225,7 @@ class Handlers(object):
         :raise: InternalServerError when the Bookmark couldn't be formatted
         """
         try:
-            return ResponseFormatter.format_bookmarks_response(bookmarks, version)
+            return ResponseFormatter.format_bookmarks_response(bookmarks, version=version)
         except ValueError:
             raise InternalServerError
 
@@ -252,7 +252,8 @@ class Handlers(object):
         :raise: InternalServerError if there was a problem with encoding
         """
         try:
-            encoded_bytes = b64encode(string, cls._alt_base64_chars)
+            bytes_to_encode = bytes(string, 'utf-8')
+            encoded_bytes = b64encode(bytes_to_encode, cls._alt_base64_chars)
             return encoded_bytes.decode('utf-8')
         except UnicodeError:
             raise InternalServerError
