@@ -2,9 +2,22 @@ language: python
 python:
   - 3.5
 
+services:
+  - postgres
+
 build:
   ci:
     - "pip install -r server/requirements.txt"
+
+    - psql -c 'create role shippable with superuser;' -U postgres
+    - psql -c 'create database presterity;' -U postgres
+    - psql -c 'create schema apps;' -U postgres presterity
+    - psql -c "create user app_user with password 'resist';" -U postgres presterity
+    - psql -c 'alter role app_user set search_path to apps;' -U postgres presterity
+    - psql -c 'grant all on schema apps to app_user;' -U postgres presterity
+    - mschematool --config server/migration.py local init_db
+    - mschematool --config server/migration.py local sync
+
     - mkdir -p shippable/testresults
 
     - nosetests server --with-xunit --xunit-file=shippable/testresults/nosetests.xml
