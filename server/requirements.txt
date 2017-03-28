@@ -4,4 +4,5 @@ psycopg2
 pytz
 SQLAlchemy
 tldextract
+typing
 werkzeug
