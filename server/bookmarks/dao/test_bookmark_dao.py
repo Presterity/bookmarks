@@ -275,7 +275,7 @@ class BookmarkCreateTests(BookmarkDaoTestCase):
             args = get_args()
             del args[required_key]
             self.assertRaisesRegex(ValueError,
-                                   "Missing required argument '{0}'".format(required_key),
+                                   "Missing required argument.*{0}".format(required_key),
                                    self._create_bookmark,
                                    **args)
             
@@ -300,7 +300,7 @@ class BookmarkCreateTests(BookmarkDaoTestCase):
                 'status': 'freida'
                 }
         self.assertRaisesRegex(ValueError,
-                               "Invalid status 'freida' on bookmark creation; must be 'new' or 'submitted'",
+                               "Invalid status.*freida.*bookmark creation.*new.*submitted",
                                self._create_bookmark,
                                **args)
 
@@ -317,7 +317,7 @@ class BookmarkCreateTests(BookmarkDaoTestCase):
                 'ice_cream': 'chocolate'}
         self.assertRaisesRegex(
             ValueError,
-            'Unexpected arguments provided for create_bookmark: ice_cream, sort_date, submitted_on',
+            'Unexpected arguments.*create_bookmark.*ice_cream.*sort_date.*submitted_on',
             self._create_bookmark,
             **args)
 
@@ -529,7 +529,7 @@ class BookmarkUpdateTests(BookmarkDaoTestCase):
         for attr in ('url', 'summary', 'display_date', 'status'):
             for empty_val in ('', None):
                 self.assertRaisesRegex(ValueError,
-                                       "Cannot provide empty value or None for bookmark {0}".format(attr),
+                                       ".*empty.*None.*{0}".format(attr),
                                        Bookmark.update_bookmark,
                                        test_bookmark.bookmark_id, 
                                        **{attr: empty_val})
@@ -602,7 +602,7 @@ class BookmarkUpdateTests(BookmarkDaoTestCase):
                  'foo': 'hi',
                  'submitted_on': datetime.utcnow()}
         self.assertRaisesRegex(ValueError,
-                               "Unexpected arguments provided for update_bookmark: foo, sort_date, submitted_on",
+                               "Unexpected arguments.*update_bookmark.*foo.*sort_date.*submitted_on",
                                Bookmark.update_bookmark,
                                test_bookmark.bookmark_id, 
                                **attrs)
@@ -675,7 +675,7 @@ class BookmarkUpdateTests(BookmarkDaoTestCase):
         # Update status
         self.assertRaisesRegex(
             ValueError,
-            "Invalid bookmark status 'new_status'; must be one of 'new', 'submitted', 'accepted', 'rejected'",
+            "Invalid bookmark status.*new_status.*new.*submitted.*accepted.*rejected",
             test_bookmark.update_status,
             mock_new_status)
 
@@ -692,7 +692,7 @@ class BookmarkUpdateTests(BookmarkDaoTestCase):
         # Update status
         self.assertRaisesRegex(
             ValueError,
-            "Invalid bookmark status transition 'new' -> 'new_status'",
+            "Invalid bookmark status transition.*new.*new_status",
             test_bookmark.update_status,
             mock_new_status)
 
