@@ -221,7 +221,8 @@ class Bookmark(Base):
             if attr in kwargs and not kwargs[attr]:
                 raise ValueError("Cannot provide empty value or None for bookmark {0}".format(attr))
 
-        # Update simple attributes
+        # Update simple attributes. While url and summary are verified to be set, description may
+        # be the empty string. In this case, convert the empty string to None.
         for attr in [a for a in ('url', 'summary', 'description') if a in kwargs]:
             setattr(bookmark, attr, kwargs.pop(attr) or None)
 
