@@ -224,7 +224,8 @@ class BookmarkCreateTests(BookmarkDaoTestCase):
         bookmark = self._create_bookmark(**args)
         self.assertEqual('eeny meeny miney mo', bookmark.description)
 
-    def test_create_bookmark__submitted(self):
+    @patch.object(BookmarkStatus, 'assert_valid_original_status')
+    def test_create_bookmark__submitted(self, mock_assert_valid_orig_status):
         """Verify Bookmark creation with status 'submitted'."""
         args = {'summary': self._summary,
                 'url': self._url,
@@ -234,6 +235,7 @@ class BookmarkCreateTests(BookmarkDaoTestCase):
         bookmark = self._create_bookmark(**args)
         self.assertEqual('submitted', bookmark.status)
         self.assertIsNotNone(bookmark.submitted_on)
+        mock_assert_valid_orig_status.assert_called_once_with(BookmarkStatus.SUBMITTED)
 
     def test_create_bookmark__submitted_ci(self):
         """Verify Bookmark creation with status 'SUBMITTED'."""
@@ -292,15 +294,17 @@ class BookmarkCreateTests(BookmarkDaoTestCase):
                                self._create_bookmark,
                                **args)
 
-    def test_create_bookmark__invalid_status(self):
-        """Verify create_bookmark raises if status is other than 'new' or 'submitted'."""
+    @patch.object(BookmarkStatus, 'assert_valid_original_status')
+    def test_create_bookmark__invalid_status(self, mock_assert_valid_orig_status):
+        """Verify create_bookmark raises if assert_valid_original_status raises."""
+        mock_assert_valid_orig_status.side_effect = ValueError("Bad dog")
         args = {'summary': self._summary,
                 'url': self._url,
                 'display_date': self._display_date,
                 'status': 'freida'
                 }
         self.assertRaisesRegex(ValueError,
-                               "Invalid status.*freida.*bookmark creation.*new.*submitted",
+                               "Bad dog",
                                self._create_bookmark,
                                **args)
 
@@ -607,13 +611,10 @@ class BookmarkUpdateTests(BookmarkDaoTestCase):
                                test_bookmark.bookmark_id, 
                                **attrs)
 
-    @patch.object(BookmarkStatus, 'is_valid_status_transition')
-    @patch.object(BookmarkStatus, 'is_valid_status')
-    def test_update_status(self, mock_is_valid_status, mock_is_valid_transition):
+    @patch.object(BookmarkStatus, 'assert_valid_status_transition')
+    def test_update_status(self, mock_assert_valid_transition):
         """Verify update_status method when status and transition are valid."""
         # Set up mocks
-        mock_is_valid_status.return_value = True
-        mock_is_valid_transition.return_value = True
         mock_new_status = 'new_status'
 
         # Create test bookmark and verify expected status
@@ -625,8 +626,7 @@ class BookmarkUpdateTests(BookmarkDaoTestCase):
         self.assertEqual(mock_new_status, test_bookmark.status)
 
         # Verify mocks
-        mock_is_valid_status.assert_called_once_with(mock_new_status)
-        mock_is_valid_transition.assert_called_once_with(BookmarkStatus.NEW, mock_new_status)
+        mock_assert_valid_transition.assert_called_once_with(BookmarkStatus.NEW, mock_new_status)
 
     def test_update_status__submitted(self):
         """Verify update_status method sets submitted_on when status is updated to 'submitted.'"""
@@ -663,27 +663,11 @@ class BookmarkUpdateTests(BookmarkDaoTestCase):
         self.assertEqual(BookmarkStatus.SUBMITTED, test_bookmark.status)
         self.assertEqual(orig_submitted_on, test_bookmark.submitted_on)
         
-    @patch.object(BookmarkStatus, 'is_valid_status', Mock(return_value=False))
-    def test_update_status__invalid_status(self):
-        """Verify update_status method when status is invalid."""
-        # Set up mocks
-        mock_new_status = 'new_status'
-
-        # Create test bookmark
-        test_bookmark = self._create_test_bookmark()
-
-        # Update status
-        self.assertRaisesRegex(
-            ValueError,
-            "Invalid bookmark status.*new_status.*new.*submitted.*accepted.*rejected",
-            test_bookmark.update_status,
-            mock_new_status)
-
-    @patch.object(BookmarkStatus, 'is_valid_status_transition', Mock(return_value=False))
-    @patch.object(BookmarkStatus, 'is_valid_status', Mock(return_value=True))
-    def test_update_status__invalid_transition(self):
+    @patch.object(BookmarkStatus, 'assert_valid_status_transition')
+    def test_update_status__invalid_transition(self, mock_assert_valid_transition):
         """Verify update_status method when transition is invalid."""
         # Set up mocks
+        mock_assert_valid_transition.side_effect = ValueError("Smart turtle")
         mock_new_status = 'new_status'
 
         # Create test bookmark 
@@ -692,7 +676,7 @@ class BookmarkUpdateTests(BookmarkDaoTestCase):
         # Update status
         self.assertRaisesRegex(
             ValueError,
-            "Invalid bookmark status transition.*new.*new_status",
+            "Smart turtle",
             test_bookmark.update_status,
             mock_new_status)
 

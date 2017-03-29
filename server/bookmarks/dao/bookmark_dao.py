@@ -114,9 +114,7 @@ class Bookmark(Base):
             attrs['topic_names'] = kwargs.pop('topics') or []
         if 'status' in kwargs:
             status = kwargs.pop('status').lower()
-            if not BookmarkStatus.is_valid_original_status(status):
-                raise ValueError("Invalid status '{0}' on bookmark creation; must be {1}".format(
-                        status, ' or '.join(["'{}'".format(s) for s in BookmarkStatus.VALID_ORIGINAL_STATUSES])))
+            BookmarkStatus.assert_valid_original_status(status)
             attrs['status'] = status
             if status == BookmarkStatus.SUBMITTED:
                 attrs['submitted_on'] = datetime.utcnow().replace(microsecond=0)
@@ -258,12 +256,7 @@ class Bookmark(Base):
         :raise: ValueError if invalid status is provided
         :raise: ValueError if provided status is not valid transition
         """
-        if not BookmarkStatus.is_valid_status(new_status):
-            raise ValueError("Invalid bookmark status '{0}'; must be one of {1}".format(
-                    new_status, ', '.join(["'{}'".format(s) for s in BookmarkStatus.VALID_STATUSES])))
-        if not BookmarkStatus.is_valid_status_transition(self.status, new_status):
-            raise ValueError("Invalid bookmark status transition '{0}' -> '{1}'".format(self.status, new_status))
-
+        BookmarkStatus.assert_valid_status_transition(self.status, new_status)
         self.status = new_status
         if self.status == BookmarkStatus.SUBMITTED and not self.submitted_on:
             self.submitted_on = datetime.utcnow().replace(microsecond=0)
