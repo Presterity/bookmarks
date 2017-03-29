@@ -3,7 +3,7 @@
 
 from datetime import datetime
 import logging
-from typing import List, Tuple, Optional
+from typing import List, Tuple, Optional, Union
 import uuid
 
 import sqlalchemy as sa
@@ -85,7 +85,7 @@ class Bookmark(Base):
         Optional **kwargs:
           * description: More detailed information about bookmarked content
           * topics: List of strings that are presterity.org topic page names
-          * bookmark_id: UUID to be assigned to bookmark; if not provided, database will assign automatically
+          * bookmark_id: string or UUID to be assigned to bookmark; if not provided, database will assign 
           * status: String that is 'new' or 'submitted'; default is 'new'
 
         :return: newly created and persisted Bookmark
@@ -132,14 +132,14 @@ class Bookmark(Base):
         return saved_bookmark
 
     @classmethod
-    def delete_bookmark(cls, bookmark_id) -> None:
+    def delete_bookmark(cls, bookmark_id: Union[str, uuid.UUID]) -> None:
         """Delete bookmark. 
 
         If requested bookmark does not exist, do not raise. Fair assumption is that
         bookmark did exist and was already deleted. In any case, the desired result of
         the bookmark not existing is True if it isn't there in the first place.
 
-        :param bookmark_id: UUID 
+        :param bookmark_id: UUID or string that is id of bookmark to be deleted
         """
         if not bookmark_id:
             raise ValueError("Missing required argument 'bookmark_id'")
@@ -180,17 +180,17 @@ class Bookmark(Base):
         return results, cursor
 
     @classmethod
-    def select_bookmark_by_id(cls, bookmark_id) -> Optional['Bookmark']:
+    def select_bookmark_by_id(cls, bookmark_id: Union[uuid.UUID, str]) -> Optional['Bookmark']:
         """Select bookmark for specified id. 
 
-        :param bookmark_id: UUID or string that is bookmark id
+        :param bookmark_id: string or that is bookmark id
         :return: selected Bookmark or None if no such bookmark exists
         """
         query = Session.get().query(Bookmark).filter_by(bookmark_id=bookmark_id)
         return query.first()
 
     @classmethod
-    def update_bookmark(cls, bookmark_id, **kwargs) -> 'Bookmark':
+    def update_bookmark(cls, bookmark_id: Union[uuid.UUID, str], **kwargs) -> 'Bookmark':
         """Update, persist and return updated Bookmark object.
 
         Optional contents of **kwargs:
