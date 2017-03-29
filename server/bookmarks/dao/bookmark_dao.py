@@ -261,22 +261,22 @@ class Bookmark(Base):
         if self.status == BookmarkStatus.SUBMITTED and not self.submitted_on:
             self.submitted_on = datetime.utcnow().replace(microsecond=0)
 
-    def update_topics(self, topics: List[str]):
+    def update_topics(self, topic_names: List[str]):
         """Update topics associated with bookmark. Note that the updated Bookmark is not persisted.
 
-        If topic from provided list is not currently associated with bookmark, add it.
-        If topic currently associated with bookmark is not in provided list, delete it.
+        If topic from provided list is not currently associated with bookmark, add a new BookmarkTopic for it.
+        If topic currently associated with bookmark is not in provided list, delete the existing BookmarkTopic.
         
-        :param topics: List of strings that are topics associated with bookmark
+        :param topic_names: List of strings that are topics associated with bookmark
         """
-        if not topics:
+        if not topic_names:
             self.topics = []
         else:
-            current_topics = set(self.topic_names)
-            updated_topics = set(topics)
-            self.topics = list(filter(lambda t: t.topic in updated_topics, self.topics))
-            for new_topic in updated_topics.difference(current_topics):
-                self.topics.append(BookmarkTopic(topic=new_topic))
+            current_topic_names = set(self.topic_names)
+            updated_topic_names = set(topic_names)
+            self.topics = list(filter(lambda t: t.topic in updated_topic_names, self.topics))
+            for new_topic_name in updated_topic_names.difference(current_topic_names):
+                self.topics.append(BookmarkTopic(topic=new_topic_name))
 
 
     # private methods
