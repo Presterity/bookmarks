@@ -3,7 +3,7 @@
 
 from datetime import datetime
 import logging
-from typing import List, Tuple, Optional
+from typing import List, Tuple, Optional, Union
 import uuid
 
 import sqlalchemy as sa
@@ -87,7 +87,7 @@ class Bookmark(Base):
         Optional **kwargs:
           * description: More detailed information about bookmarked content
           * topics: List of strings that are presterity.org topic page names
-          * bookmark_id: UUID to be assigned to bookmark; if not provided, database will assign automatically
+          * bookmark_id: string or UUID to be assigned to bookmark; if not provided, database will assign 
           * status: String that is 'new' or 'submitted'; default is 'new'
 
         :return: newly created and persisted Bookmark
@@ -120,9 +120,7 @@ class Bookmark(Base):
             attrs['topic_names'] = kwargs.pop('topics') or []
         if 'status' in kwargs:
             status = kwargs.pop('status').lower()
-            if not BookmarkStatus.is_valid_original_status(status):
-                raise ValueError("Invalid status '{0}' on bookmark creation; must be {1}".format(
-                        status, ' or '.join(["'{}'".format(s) for s in BookmarkStatus.VALID_ORIGINAL_STATUSES])))
+            BookmarkStatus.assert_valid_original_status(status)
             attrs['status'] = status
             if status == BookmarkStatus.SUBMITTED:
                 attrs['submitted_on'] = datetime.utcnow().replace(microsecond=0)
@@ -138,18 +136,19 @@ class Bookmark(Base):
         return saved_bookmark
 
     @classmethod
-    def delete_bookmark(cls, bookmark_id) -> None:
-        """Delete bookmark.
+    def delete_bookmark(cls, bookmark_id: Union[str, uuid.UUID]) -> None:
+        """Delete bookmark. 
 
         If requested bookmark does not exist, do not raise. Fair assumption is that
         bookmark did exist and was already deleted. In any case, the desired result of
         the bookmark not existing is True if it isn't there in the first place.
 
-        :param bookmark_id: UUID
+        :param bookmark_id: UUID or string that is id of bookmark to be deleted
         """
         if not bookmark_id:
             raise ValueError("Missing required argument 'bookmark_id'")
         Session.get().query(Bookmark).filter_by(bookmark_id=bookmark_id).delete()
+        
 
     @classmethod
     def select_bookmarks(cls, topics: List[str]=None, cursor=None, max_results=None) -> Tuple[List['Bookmark'], str]:
@@ -188,7 +187,7 @@ class Bookmark(Base):
         return results, cursor
 
     @classmethod
-    def select_bookmark_by_id(cls, bookmark_id) -> Optional['Bookmark']:
+    def select_bookmark_by_id(cls, bookmark_id: Union[uuid.UUID, str]) -> Optional['Bookmark']:
         """Select bookmark for specified id. 
 
         :param bookmark_id: UUID or string that is bookmark id
@@ -198,7 +197,7 @@ class Bookmark(Base):
         return query.first()
 
     @classmethod
-    def update_bookmark(cls, bookmark_id, **kwargs) -> 'Bookmark':
+    def update_bookmark(cls, bookmark_id: Union[uuid.UUID, str], **kwargs) -> 'Bookmark':
         """Update, persist and return updated Bookmark object.
 
         Optional contents of **kwargs:
@@ -229,7 +228,8 @@ class Bookmark(Base):
             if attr in kwargs and not kwargs[attr]:
                 raise ValueError("Cannot provide empty value or None for bookmark {0}".format(attr))
 
-        # Update simple attributes
+        # Update simple attributes. While url and summary are verified to be set, description may
+        # be the empty string. In this case, convert the empty string to None.
         for attr in [a for a in ('url', 'summary', 'description') if a in kwargs]:
             setattr(bookmark, attr, kwargs.pop(attr) or None)
 
@@ -265,32 +265,27 @@ class Bookmark(Base):
         :raise: ValueError if invalid status is provided
         :raise: ValueError if provided status is not valid transition
         """
-        if not BookmarkStatus.is_valid_status(new_status):
-            raise ValueError("Invalid bookmark status '{0}'; must be one of {1}".format(
-                    new_status, ', '.join(["'{}'".format(s) for s in BookmarkStatus.VALID_STATUSES])))
-        if not BookmarkStatus.is_valid_status_transition(self.status, new_status):
-            raise ValueError("Invalid bookmark status transition '{0}' -> '{1}'".format(self.status, new_status))
-
+        BookmarkStatus.assert_valid_status_transition(self.status, new_status)
         self.status = new_status
         if self.status == BookmarkStatus.SUBMITTED and not self.submitted_on:
             self.submitted_on = datetime.utcnow().replace(microsecond=0)
 
-    def update_topics(self, topics: List[str]):
+    def update_topics(self, topic_names: List[str]):
         """Update topics associated with bookmark. Note that the updated Bookmark is not persisted.
 
-        If topic from provided list is not currently associated with bookmark, add it.
-        If topic currently associated with bookmark is not in provided list, delete it.
-
-        :param topics: List of strings that are topics associated with bookmark
+        If topic from provided list is not currently associated with bookmark, add a new BookmarkTopic for it.
+        If topic currently associated with bookmark is not in provided list, delete the existing BookmarkTopic.
+        
+        :param topic_names: List of strings that are topics associated with bookmark
         """
-        if not topics:
+        if not topic_names:
             self.topics = []
         else:
-            current_topics = set(self.topic_names)
-            updated_topics = set(topics)
-            self.topics = list(filter(lambda t: t.topic in updated_topics, self.topics))
-            for new_topic in updated_topics.difference(current_topics):
-                self.topics.append(BookmarkTopic(topic=new_topic))
+            current_topic_names = set(self.topic_names)
+            updated_topic_names = set(topic_names)
+            self.topics = list(filter(lambda t: t.topic in updated_topic_names, self.topics))
+            for new_topic_name in updated_topic_names.difference(current_topic_names):
+                self.topics.append(BookmarkTopic(topic=new_topic_name))
 
 
 class BookmarkTopic(Base):
