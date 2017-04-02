@@ -11,7 +11,7 @@ import uuid
 
 from .session import Session
 from .test_dao_factory import TestDaoFactory
-from .bookmark_dao import Bookmark, BookmarkTopic, BookmarkNote
+from .bookmark_dao import Bookmark, BookmarkTopic, BookmarkNote, BookmarkStatus
 
 
 class BookmarkDaoTestCase(unittest.TestCase):
@@ -31,12 +31,14 @@ class BookmarkDaoTestCase(unittest.TestCase):
             self.session.query(Bookmark).filter_by(bookmark_id=bookmark_id).delete()
         Session.close()
 
-    def _create_test_bookmark(self):
+    def _create_test_bookmark(self, **kwargs):
         """Return Bookmark that has been saved to db."""
-        self._save_bookmark(Bookmark(bookmark_id=self._bookmark_id,
-                                     url=self._url,
-                                     summary=self._summary,
-                                     sort_date=self._sort_date))
+        attrs = {'bookmark_id': self._bookmark_id,
+                 'url': self._url,
+                 'summary': self._summary,
+                 'sort_date': self._sort_date}
+        attrs.update(**kwargs)
+        self._save_bookmark(Bookmark(**attrs))
         return self._select_bookmark(self._bookmark_id)
 
     def _save_bookmark(self, bookmark):
@@ -172,7 +174,6 @@ class BookmarkCreateTests(BookmarkDaoTestCase):
         # Set up mocks and test data
         test_date_format = 'foo'
         mock_parse_display_date.return_value = (self._sort_date, test_date_format)
-        utcnow = datetime.utcnow().replace(microsecond=0)
 
         # Create bookmark
         args = {'summary': self._summary,
@@ -190,7 +191,7 @@ class BookmarkCreateTests(BookmarkDaoTestCase):
         self.assertEqual('new', bookmark.status)
         self.assertIsNone(bookmark.description)
         self.assertEqual([], bookmark.topics)
-        self.assertTrue(utcnow <= bookmark.created_on)
+        self.assertIsNotNone(bookmark.created_on)
         self.assertIsNone(bookmark.submitted_on)
 
         # Verify mocks
@@ -223,9 +224,9 @@ class BookmarkCreateTests(BookmarkDaoTestCase):
         bookmark = self._create_bookmark(**args)
         self.assertEqual('eeny meeny miney mo', bookmark.description)
 
-    def test_create_bookmark__submitted(self):
+    @patch.object(BookmarkStatus, 'assert_valid_original_status')
+    def test_create_bookmark__submitted(self, mock_assert_valid_orig_status):
         """Verify Bookmark creation with status 'submitted'."""
-        utcnow = datetime.utcnow().replace(microsecond=0)
         args = {'summary': self._summary,
                 'url': self._url,
                 'display_date': self._display_date,
@@ -233,7 +234,8 @@ class BookmarkCreateTests(BookmarkDaoTestCase):
                 }
         bookmark = self._create_bookmark(**args)
         self.assertEqual('submitted', bookmark.status)
-        self.assertTrue(utcnow <= bookmark.submitted_on)
+        self.assertIsNotNone(bookmark.submitted_on)
+        mock_assert_valid_orig_status.assert_called_once_with(BookmarkStatus.SUBMITTED)
 
     def test_create_bookmark__submitted_ci(self):
         """Verify Bookmark creation with status 'SUBMITTED'."""
@@ -275,7 +277,7 @@ class BookmarkCreateTests(BookmarkDaoTestCase):
             args = get_args()
             del args[required_key]
             self.assertRaisesRegex(ValueError,
-                                   "Missing required argument '{0}'".format(required_key),
+                                   "Missing required argument.*{0}".format(required_key),
                                    self._create_bookmark,
                                    **args)
             
@@ -292,15 +294,17 @@ class BookmarkCreateTests(BookmarkDaoTestCase):
                                self._create_bookmark,
                                **args)
 
-    def test_create_bookmark__invalid_status(self):
-        """Verify create_bookmark raises if status is other than 'new' or 'submitted'."""
+    @patch.object(BookmarkStatus, 'assert_valid_original_status')
+    def test_create_bookmark__invalid_status(self, mock_assert_valid_orig_status):
+        """Verify create_bookmark raises if assert_valid_original_status raises."""
+        mock_assert_valid_orig_status.side_effect = ValueError("Bad dog")
         args = {'summary': self._summary,
                 'url': self._url,
                 'display_date': self._display_date,
                 'status': 'freida'
                 }
         self.assertRaisesRegex(ValueError,
-                               "Invalid status 'freida' on bookmark creation; must be 'new' or 'submitted'",
+                               "Bad dog",
                                self._create_bookmark,
                                **args)
 
@@ -317,7 +321,7 @@ class BookmarkCreateTests(BookmarkDaoTestCase):
                 'ice_cream': 'chocolate'}
         self.assertRaisesRegex(
             ValueError,
-            'Unexpected arguments provided for create_bookmark: ice_cream, sort_date, submitted_on',
+            'Unexpected arguments.*create_bookmark.*ice_cream.*sort_date.*submitted_on',
             self._create_bookmark,
             **args)
 
@@ -479,6 +483,272 @@ class BookmarkSelectTests(BookmarkDaoTestCase):
         self.assertIsNone(Bookmark.select_bookmark_by_id(uuid.uuid4()))
 
 
+class BookmarkUpdateTests(BookmarkDaoTestCase):
+    """Verify update_bookmark behavior."""
+
+    def test_update__simple(self):
+        """Verify update of url, summary and description."""
+        url = "http://latimes.com/news/article.html"
+        summary = "Good article about weaving"
+        description = "Learn how to weave your own fabric"
+
+        # Create test bookmark and make sure our test data does not collide
+        test_bookmark = self._create_test_bookmark()
+        self.assertNotEqual(url, test_bookmark.url)
+        self.assertNotEqual(summary, test_bookmark.summary)
+        self.assertNotEqual(description, test_bookmark.description)
+
+        # Update bookmark
+        updated_bookmark = Bookmark.update_bookmark(
+            test_bookmark.bookmark_id,
+            summary=summary,
+            url=url,
+            description=description)
+        self.assertIsNotNone(updated_bookmark)
+        self.assertEqual(test_bookmark.bookmark_id, updated_bookmark.bookmark_id)
+
+        # Clear session and re-select bookmark to verify that it was persisted
+        self.session.flush()
+        self.session.commit()
+        selected_bookmark = self._select_bookmark(test_bookmark.bookmark_id)
+        self.assertIsNotNone(selected_bookmark)
+
+        # Verify changed and unchanged attributes
+        for bookmark in (updated_bookmark, selected_bookmark):
+            self.assertEqual(url, bookmark.url)
+            self.assertEqual(summary, bookmark.summary)
+            self.assertEqual(description, bookmark.description)
+
+            # Verify that everything else stayed the same
+            for attr in ('sort_date', 'display_date_format', 'status', 'created_on',
+                         'submitted_on', 'topics'):
+                self.assertEqual(getattr(test_bookmark, attr), getattr(bookmark, attr))
+                                                    
+    def test_update__clear_required_attr(self):
+        """Verify that attempt to clear url, summary, or display_date_format raises."""
+        # Create test bookmark
+        test_bookmark = self._create_test_bookmark()
+
+        # Attempt to clear required data
+        for attr in ('url', 'summary', 'display_date', 'status'):
+            for empty_val in ('', None):
+                self.assertRaisesRegex(ValueError,
+                                       ".*empty.*None.*{0}".format(attr),
+                                       Bookmark.update_bookmark,
+                                       test_bookmark.bookmark_id, 
+                                       **{attr: empty_val})
+
+    def test_update__clear_optional_attr(self):
+        """Verify that optional attributes can be cleared."""
+        # Create test bookmark
+        test_bookmark = self._create_test_bookmark(description='hi')
+        self.assertEqual('hi', test_bookmark.description)
+
+        # Clear description
+        for empty_val in ('', None):
+            updated_bookmark = Bookmark.update_bookmark(test_bookmark.bookmark_id, description=empty_val)
+            self.assertIsNone(updated_bookmark.description)
+        
+    @patch.object(Bookmark, '_parse_display_date')
+    def test_update__display_date(self, mock_parse_display_date):
+        """Verify results and calls made when display_date is updated."""
+
+        # Create test bookmark
+        test_bookmark = self._create_test_bookmark()
+        
+        # Set up mocks
+        new_sort_date = test_bookmark.sort_date + timedelta(hours=12)
+        new_format = 'foo'
+        mock_parse_display_date.return_value = (new_sort_date, new_format)
+
+        # Update display_date
+        updated_bookmark = Bookmark.update_bookmark(test_bookmark.bookmark_id, display_date='something')
+        self.assertEqual(new_sort_date, updated_bookmark.sort_date)
+        self.assertEqual(new_format, updated_bookmark.display_date_format)
+
+        # Verify mock
+        mock_parse_display_date.assert_called_once_with('something')
+
+    @patch.object(Bookmark, 'update_status')
+    def test_update__status(self, mock_update_status):
+        """Verify that appropriate call is made when status is updated."""
+
+        # Create test bookmark
+        test_bookmark = self._create_test_bookmark()
+        
+        # Update status
+        mock_status = Mock(name='updated_status')
+        updated_bookmark = Bookmark.update_bookmark(test_bookmark.bookmark_id, status=mock_status)
+
+        # Verify mock
+        mock_update_status.assert_called_once_with(mock_status.lower())
+
+    @patch.object(Bookmark, 'update_topics')
+    def test_update__topics(self, mock_update_topics):
+        """Verify that appropriate call is made when topics are updated."""
+
+        # Create test bookmark
+        test_bookmark = self._create_test_bookmark()
+        
+        # Update topics
+        mock_topics = Mock(name='updated_topics')
+        updated_bookmark = Bookmark.update_bookmark(test_bookmark.bookmark_id, topics=mock_topics)
+
+        # Verify mock
+        mock_update_topics.assert_called_once_with(mock_topics)
+
+    def test_update__other_attrs(self):
+        """Verify that attempt to update other attributes raises."""
+        # Create test bookmark
+        test_bookmark = self._create_test_bookmark()
+
+        attrs = {'sort_date': datetime.utcnow(), 
+                 'foo': 'hi',
+                 'submitted_on': datetime.utcnow()}
+        self.assertRaisesRegex(ValueError,
+                               "Unexpected arguments.*update_bookmark.*foo.*sort_date.*submitted_on",
+                               Bookmark.update_bookmark,
+                               test_bookmark.bookmark_id, 
+                               **attrs)
+
+    @patch.object(BookmarkStatus, 'assert_valid_status_transition')
+    def test_update_status(self, mock_assert_valid_transition):
+        """Verify update_status method when status and transition are valid."""
+        # Set up mocks
+        mock_new_status = 'new_status'
+
+        # Create test bookmark and verify expected status
+        test_bookmark = self._create_test_bookmark()
+        self.assertEqual(BookmarkStatus.NEW, test_bookmark.status)
+
+        # Update status
+        test_bookmark.update_status(mock_new_status)
+        self.assertEqual(mock_new_status, test_bookmark.status)
+
+        # Verify mocks
+        mock_assert_valid_transition.assert_called_once_with(BookmarkStatus.NEW, mock_new_status)
+
+    def test_update_status__submitted(self):
+        """Verify update_status method sets submitted_on when status is updated to 'submitted.'"""
+        # Create test bookmark and verify expected status
+        test_bookmark = self._create_test_bookmark()
+        self.assertEqual(BookmarkStatus.NEW, test_bookmark.status)
+        self.assertIsNone(test_bookmark.submitted_on)
+
+        # Update status
+        test_bookmark.update_status(BookmarkStatus.SUBMITTED)
+        self.assertEqual(BookmarkStatus.SUBMITTED, test_bookmark.status)
+        self.assertIsNotNone(test_bookmark.submitted_on)
+
+    def test_update_status__submitted_2x(self):
+        """Verify update_status method only sets submitted_on once."""
+        # Create test bookmark and verify expected status
+        test_bookmark = self._create_test_bookmark()
+        self.assertEqual(BookmarkStatus.NEW, test_bookmark.status)
+        self.assertIsNone(test_bookmark.submitted_on)
+
+        # Update status
+        test_bookmark.update_status(BookmarkStatus.SUBMITTED)
+        self.assertEqual(BookmarkStatus.SUBMITTED, test_bookmark.status)
+        self.assertIsNotNone(test_bookmark.submitted_on)
+        orig_submitted_on = test_bookmark.submitted_on
+
+        # Update status to accepted
+        test_bookmark.update_status(BookmarkStatus.ACCEPTED)
+        self.assertEqual(BookmarkStatus.ACCEPTED, test_bookmark.status)
+        self.assertEqual(orig_submitted_on, test_bookmark.submitted_on)
+
+        # Update status back to submitted_on
+        test_bookmark.update_status(BookmarkStatus.SUBMITTED)
+        self.assertEqual(BookmarkStatus.SUBMITTED, test_bookmark.status)
+        self.assertEqual(orig_submitted_on, test_bookmark.submitted_on)
+        
+    @patch.object(BookmarkStatus, 'assert_valid_status_transition')
+    def test_update_status__invalid_transition(self, mock_assert_valid_transition):
+        """Verify update_status method when transition is invalid."""
+        # Set up mocks
+        mock_assert_valid_transition.side_effect = ValueError("Smart turtle")
+        mock_new_status = 'new_status'
+
+        # Create test bookmark 
+        test_bookmark = self._create_test_bookmark()
+
+        # Update status
+        self.assertRaisesRegex(
+            ValueError,
+            "Smart turtle",
+            test_bookmark.update_status,
+            mock_new_status)
+
+    def test_update_topics(self):
+        """Verify that topics can be added, removed, and left alone."""
+        test_bookmark = self._create_test_bookmark(topic_names=['keeper', 'loser'])
+        self.assertEqual(2, len(test_bookmark.topics))
+        self.assertEqual(set(['keeper', 'loser']), set([t.topic for t in test_bookmark.topics]))
+        keeper_created_on = [t.created_on for t in test_bookmark.topics if t.topic == 'keeper'][0]
+
+        # Update topics
+        test_bookmark.update_topics(['new', 'keeper'])
+        self.assertEqual(2, len(test_bookmark.topics))
+        self.assertEqual(set(['keeper', 'new']), set([t.topic for t in test_bookmark.topics]))
+        self.assertEqual(keeper_created_on, [t.created_on for t in test_bookmark.topics if t.topic == 'keeper'][0])
+        self.session.merge(test_bookmark)
+
+        # Verify that dropped topic is really gone
+        topics = self.session.query(BookmarkTopic).filter_by(bookmark_id=test_bookmark.bookmark_id).all()
+        self.assertEqual(set(['keeper', 'new']), set([t.topic for t in topics]))
+
+    def test_update_topics__clear_topics__empty_list(self):
+        """Verify that topics can be cleared by updating to empty list."""
+        test_bookmark = self._create_test_bookmark(topic_names=['apple', 'banana'])
+        self.assertEqual(2, len(test_bookmark.topics))
+
+        # Update topics to empty list
+        test_bookmark.update_topics([])
+        self.assertEqual(0, len(test_bookmark.topics))
+        self.session.merge(test_bookmark)
+
+        # Verify that dropped topics are really gone
+        topics = self.session.query(BookmarkTopic).filter_by(bookmark_id=test_bookmark.bookmark_id).all()
+        self.assertEqual(0, len(topics))
+
+    def test_update_topics__clear_topics__None(self):
+        """Verify that topics can be cleared by updating to None."""
+        test_bookmark = self._create_test_bookmark(topic_names=['apple', 'banana'])
+        self.assertEqual(2, len(test_bookmark.topics))
+
+        # Update topics to empty list
+        test_bookmark.update_topics(None)
+        self.assertEqual(0, len(test_bookmark.topics))
+        self.session.merge(test_bookmark)
+
+        # Verify that dropped topics are really gone
+        topics = self.session.query(BookmarkTopic).filter_by(bookmark_id=test_bookmark.bookmark_id).all()
+        self.assertEqual(0, len(topics))
+
+
+class BookmarkDeleteTests(BookmarkDaoTestCase):
+    """Verify Bookmark.delete_bookmark."""
+
+    def test_delete(self):
+        """Verify that bookmark is deleted."""
+        test_bookmark = self._create_test_bookmark()
+        self.session.flush()
+        self.session.commit()
+        self.assertIsNotNone(self._select_bookmark(test_bookmark.bookmark_id))
+                             
+        Bookmark.delete_bookmark(test_bookmark.bookmark_id)
+        self.session.flush()
+        self.session.commit()
+        self.assertIsNone(self._select_bookmark(test_bookmark.bookmark_id))
+
+    def test_delete__no_such_bookmark(self):
+        """Verify that delete_bookmark does no harm if bookmark does not exist."""
+        Bookmark.delete_bookmark(uuid.uuid4())
+        self.session.flush()
+        self.session.commit()
+
+
 class BookmarkTopicTests(BookmarkDaoTestCase):
     """Verify BookmarkTopic ORM."""
 
@@ -505,6 +775,19 @@ class BookmarkTopicTests(BookmarkDaoTestCase):
         self.assertEqual(1, len(topics))
         self.assertEqual(self._topic, topics[0].topic)
         self.assertEqual(self._created_on, topics[0].created_on)
+
+    def test_bookmark_topic__association_proxy(self):
+        """Verify BookmarkTopic creation via Bookmark.topic_names."""
+        # Create and save bookmark first because of FK relationship
+        test_bookmark = self._create_test_bookmark()
+        test_bookmark.topic_names = [self._topic]
+        self.session.merge(test_bookmark)
+        self.session.flush()
+        
+        topics = self._select_bookmark_topics(self._bookmark_id)
+        self.assertEqual(1, len(topics))
+        self.assertEqual(self._topic, topics[0].topic)
+        self.assertIsNotNone(topics[0].created_on)
 
     def test_bookmark_topic__delete_leaves_bookmark(self):
         """Verify BookmarkTopic deletion leaves parent Bookmark intact."""

@@ -3,15 +3,17 @@
 
 from datetime import datetime
 import logging
-from typing import List, Tuple, Optional
+from typing import List, Tuple, Optional, Union
 import uuid
 
 import sqlalchemy as sa
-import sqlalchemy.ext.associationproxy as sa_assoc_proxy
+from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.declarative import declarative_base
 import sqlalchemy.orm as sa_orm
 import sqlalchemy.types as sa_types
 
+from .bookmark_status import BookmarkStatus
+from .exc import RecordNotFoundError
 from .session import Session
 from .uuid_type import UUIDType
 
@@ -35,7 +37,7 @@ class Bookmark(Base):
     sort_date = sa.Column(sa_types.TIMESTAMP(timezone=True), nullable=False)
     description = sa.Column(sa_types.Text(), default=None)
     display_date_format = sa.Column(sa.String(20), nullable=False, default='%Y.%m.%d')
-    status = sa.Column(sa.String(100), nullable=False, default='new')
+    status = sa.Column(sa.String(100), nullable=False, default=BookmarkStatus.NEW)
     source = sa.Column(sa.String(50), default=None)
     source_item_id = sa.Column(sa.String(50), default=None)
     source_last_updated = sa.Column(sa_types.TIMESTAMP(timezone=True), default=None)
@@ -65,12 +67,15 @@ class Bookmark(Base):
         try:
             sort_date = datetime.strptime(toks[0], '%Y-%m-%dT%H:%M:%S')
         except ValueError as ex:
-            raise ValueError("Invalid cursor format; sort_date '{0}' not in expected format %Y-%m-%dT%H:%M:%S".format(toks[0]))
+            raise ValueError("Invalid cursor format; sort_date '{0}' not in expected format %Y-%m-%dT%H:%M:%S".format(
+                    toks[0]))
         return sort_date, toks[1]
 
     @classmethod
     def create_bookmark(cls, **kwargs) -> 'Bookmark':
         """Create, persist and return new Bookmark object.
+
+        :param **kwargs: dict of data described below
 
         Required **kwargs:
           * summary: Brief description of bookmarked content
@@ -80,8 +85,8 @@ class Bookmark(Base):
         Optional **kwargs:
           * description: More detailed information about bookmarked content
           * topics: List of strings that are presterity.org topic page names
-          * bookmark_id: UUID to be assigned to bookmark; if not provided, database will assign automatically
-          * status: String that is 'new' or 'submitted'
+          * bookmark_id: string or UUID to be assigned to bookmark; if not provided, database will assign 
+          * status: String that is 'new' or 'submitted'; default is 'new'
 
         :return: newly created and persisted Bookmark
         :raise: ValueError if required args are not specified
@@ -94,26 +99,24 @@ class Bookmark(Base):
             if arg not in kwargs:
                 raise ValueError("Missing required argument '{0}'".format(arg))
 
-        sort_date, date_format_string = cls._parse_display_date(kwargs.pop('display_date'))
+        sort_date, display_date_format = cls._parse_display_date(kwargs.pop('display_date'))
 
         attrs = {'bookmark_id': kwargs.pop('bookmark_id', uuid.uuid4()),
                  'url': kwargs.pop('url'),
                  'summary': kwargs.pop('summary'),
                  'sort_date': sort_date,
-                 'display_date_format': date_format_string,
-                 'status': 'new'}
+                 'display_date_format': display_date_format,
+                 'status': BookmarkStatus.NEW}
 
         if 'description' in kwargs:
-            attrs['description'] = kwargs.pop('description')
+            attrs['description'] = kwargs.pop('description') 
         if 'topics' in kwargs:
-            attrs['topics'] = [BookmarkTopic(topic=t) for t in kwargs.pop('topics') or []]
+            attrs['topic_names'] = kwargs.pop('topics') or []
         if 'status' in kwargs:
             status = kwargs.pop('status').lower()
-            if status not in ('new', 'submitted'):
-                raise ValueError("Invalid status '{0}' on bookmark creation; must be 'new' or 'submitted'".format(
-                        status))
+            BookmarkStatus.assert_valid_original_status(status)
             attrs['status'] = status
-            if status == 'submitted':
+            if status == BookmarkStatus.SUBMITTED:
                 attrs['submitted_on'] = datetime.utcnow().replace(microsecond=0)
         if kwargs:
             raise ValueError("Unexpected arguments provided for create_bookmark: {0}".format(
@@ -125,6 +128,21 @@ class Bookmark(Base):
         saved_bookmark = session.merge(new_bookmark)
         session.flush()
         return saved_bookmark
+
+    @classmethod
+    def delete_bookmark(cls, bookmark_id: Union[str, uuid.UUID]) -> None:
+        """Delete bookmark. 
+
+        If requested bookmark does not exist, do not raise. Fair assumption is that
+        bookmark did exist and was already deleted. In any case, the desired result of
+        the bookmark not existing is True if it isn't there in the first place.
+
+        :param bookmark_id: UUID or string that is id of bookmark to be deleted
+        """
+        if not bookmark_id:
+            raise ValueError("Missing required argument 'bookmark_id'")
+        Session.get().query(Bookmark).filter_by(bookmark_id=bookmark_id).delete()
+        
 
     @classmethod
     def select_bookmarks(cls, topics: List[str]=None, cursor=None, max_results=None) -> Tuple[List['Bookmark'], str]:
@@ -160,18 +178,109 @@ class Bookmark(Base):
         return results, cursor
 
     @classmethod
-    def select_bookmark_by_id(cls, bookmark_id: str) -> Optional['Bookmark']:
+    def select_bookmark_by_id(cls, bookmark_id: Union[uuid.UUID, str]) -> Optional['Bookmark']:
         """Select bookmark for specified id. 
 
-        :param bookmark_id: string that is bookmark id
+        :param bookmark_id: string or that is bookmark id
         :return: selected Bookmark or None if no such bookmark exists
         """
         query = Session.get().query(Bookmark).filter_by(bookmark_id=bookmark_id)
         return query.first()
 
+    @classmethod
+    def update_bookmark(cls, bookmark_id: Union[uuid.UUID, str], **kwargs) -> 'Bookmark':
+        """Update, persist and return updated Bookmark object.
+
+        Optional contents of **kwargs:
+          * summary: Brief description of bookmarked content
+          * url: Location at which bookmarked content was found
+          * display_date: Date to be associated with bookmarked event, in format %Y.%m[.%d [%H[:%M]]]
+          * description: More detailed information about bookmarked content
+          * topics: List of strings that are presterity.org topic page names
+          * status: String that is valid BookmarkStatus
+
+        :param bookmark_id: string or UUID that identifies existing bookmark
+        :param **kwargs: dict of optional data described above
+
+        :return: updated Bookmark
+        :raise: exc.RecordNotFoundError if no such bookmark exists
+        :raise: ValueError if required bookmark data is being set to empty value or None
+        :raise: ValueError if display_date is specified and not in expected format
+        :raise: ValueError if status is specified and an unsupported value or invalid transition
+        :raise: ValueError if extra args are specified
+
+        """
+        bookmark = cls.select_bookmark_by_id(bookmark_id)
+        if not bookmark:
+            raise exc.RecordNotFoundError("No bookmark by id {0}".format(bookmark_id))
+
+        # Verify that required bookmark data is not being unset
+        for attr in ('url', 'summary', 'display_date', 'status'):
+            if attr in kwargs and not kwargs[attr]:
+                raise ValueError("Cannot provide empty value or None for bookmark {0}".format(attr))
+
+        # Update simple attributes. While url and summary are verified to be set, description may
+        # be the empty string. In this case, convert the empty string to None.
+        for attr in [a for a in ('url', 'summary', 'description') if a in kwargs]:
+            setattr(bookmark, attr, kwargs.pop(attr) or None)
+
+        # If display_date is specified, it must be in expected format
+        if 'display_date' in kwargs:
+            sort_date, display_date_format = cls._parse_display_date(kwargs.pop('display_date'))
+            bookmark.sort_date = sort_date
+            bookmark.display_date_format = display_date_format
+
+        # If status is specified, it must be valid and supported transition
+        if 'status' in kwargs:
+            bookmark.update_status(kwargs.pop('status').lower())
+
+        # Update topics intelligently
+        if 'topics' in kwargs:
+            bookmark.update_topics(kwargs.pop('topics') or [])
+
+        # If anything is left in kwargs, raise an error
+        if kwargs:
+            raise ValueError("Unexpected arguments provided for update_bookmark: {0}".format(
+                    ', '.join(sorted(kwargs.keys()))))
+
+        session = Session.get()
+        updated_bookmark = session.merge(bookmark)
+        session.flush()
+        return updated_bookmark
+
+    def update_status(self, new_status: str):
+        """Update status field of bookmark if allowed. Note that the updated Bookmark is not persisted.
+
+        :param new_status: string that is new BookmarkStatus
+
+        :raise: ValueError if invalid status is provided
+        :raise: ValueError if provided status is not valid transition
+        """
+        BookmarkStatus.assert_valid_status_transition(self.status, new_status)
+        self.status = new_status
+        if self.status == BookmarkStatus.SUBMITTED and not self.submitted_on:
+            self.submitted_on = datetime.utcnow().replace(microsecond=0)
+
+    def update_topics(self, topic_names: List[str]):
+        """Update topics associated with bookmark. Note that the updated Bookmark is not persisted.
+
+        If topic from provided list is not currently associated with bookmark, add a new BookmarkTopic for it.
+        If topic currently associated with bookmark is not in provided list, delete the existing BookmarkTopic.
+        
+        :param topic_names: List of strings that are topics associated with bookmark
+        """
+        if not topic_names:
+            self.topics = []
+        else:
+            current_topic_names = set(self.topic_names)
+            updated_topic_names = set(topic_names)
+            self.topics = list(filter(lambda t: t.topic in updated_topic_names, self.topics))
+            for new_topic_name in updated_topic_names.difference(current_topic_names):
+                self.topics.append(BookmarkTopic(topic=new_topic_name))
+
 
     # private methods
-    
+
     @classmethod
     def _parse_display_date(cls, display_date: str) -> Tuple[datetime, str]:
         """Parse provided date string into date and format string.
@@ -212,10 +321,16 @@ class BookmarkNote(Base):
 Bookmark.topics = sa_orm.relationship(
     BookmarkTopic,
     primaryjoin=Bookmark.bookmark_id==BookmarkTopic.bookmark_id,
-    order_by=lambda: (BookmarkTopic.topic, BookmarkTopic.created_on))
+    order_by=lambda: (BookmarkTopic.topic, BookmarkTopic.created_on),
+    cascade="all, delete-orphan")
+
+Bookmark.topic_names = association_proxy(
+    'topics', 'topic',
+    creator=lambda topic_name: BookmarkTopic(topic=topic_name))
 
 # Cascading delete is set up at DB level and is not re-specified here
 Bookmark.notes = sa_orm.relationship(
     BookmarkNote,
     primaryjoin=Bookmark.bookmark_id==BookmarkNote.bookmark_id,
-    order_by=lambda: BookmarkNote.created_on)
+    order_by=lambda: BookmarkNote.created_on,
+    cascade="all, delete-orphan")
