@@ -3,6 +3,7 @@
 
 import unittest
 from unittest.mock import ANY, Mock, patch
+from flask_api import status
 import uuid
 
 import json
@@ -54,12 +55,12 @@ class BookmarkManagerApiTests(unittest.TestCase):
         response = self.get_bookmarks()
         
         # Verify response
-        self.assertEqual(200, response.status_code)
+        self.assertEqual(status.HTTP_200_OK, response.status_code)
         self.assertEqual(mock_response_json, self.get_response_json(response))
 
         # Verify mocks
         mock_select_bookmarks.assert_called_once_with(topics=None, cursor=None, max_results=None)
-        mock_format_response.assert_called_once_with(mock_bookmarks, version=ANY)
+        mock_format_response.assert_called_once_with(mock_bookmarks, version=1702)
 
     @patch.object(bookmarks.api.ResponseFormatter, 'format_bookmarks_response')
     @patch.object(bookmarks.dao.Bookmark, 'select_bookmarks')
@@ -67,19 +68,20 @@ class BookmarkManagerApiTests(unittest.TestCase):
         """Verify success scenario for retrieving bookmarks with topics.
         """
         # Set up mocks and test data
+        mock_cursor = 'bW9ja19jdXJzb3I=' # base64 encoding of 'mock_cursor'
         mock_bookmarks = [Mock(name='bookmark_1'), Mock(name='bookmark_2')]
-        mock_select_bookmarks.return_value = mock_bookmarks
+        mock_select_bookmarks.return_value = (mock_bookmarks, mock_cursor)
         mock_format_response.return_value = mock_response_json = {'test_key': 'test_value'}
         
         # Make call
         response = self.get_bookmarks(topics=['topic_1', 'topic_2'])
         
         # Verify response
-        self.assertEqual(200, response.status_code)
+        self.assertEqual(status.HTTP_200_OK, response.status_code)
         self.assertEqual(mock_response_json, self.get_response_json(response))
 
         # Verify mocks
-        mock_select_bookmarks.assert_called_once_with(topics=['topic_1', 'topic_2'])
+        mock_select_bookmarks.assert_called_once_with(cursor=None, max_results=None, topics=['topic_1', 'topic_2'])
         mock_format_response.assert_called_once_with(mock_bookmarks, version=ANY)
 
     @patch.object(bookmarks.dao.Bookmark, 'select_bookmarks')
@@ -87,23 +89,22 @@ class BookmarkManagerApiTests(unittest.TestCase):
         """Verify response for empty list of bookmarks.
         """
         # Set up mocks and test data
-        mock_select_bookmarks.return_value = []
+        mock_select_bookmarks.return_value = ([], None)
         
         # Make call
         response = self.get_bookmarks()
         
         # Verify response
-        self.assertEqual(200, response.status_code)
-        self.assertEqual({'bookmarks': []}, self.get_response_json(response))
+        self.assertEqual(status.HTTP_204_NO_CONTENT, response.status_code)
 
         # Verify mocks
-        mock_select_bookmarks.assert_called_once_with(topics=None)
+        mock_select_bookmarks.assert_called_once_with(cursor=None, max_results=None, topics=None)
 
     def test_get_bookmarks__unavailable_version(self):
         """Verify 404 if invalid version is supplied.
         """
         response = self.get_bookmarks(version=1)
-        self.assertEqual(404, response.status_code)
+        self.assertEqual(status.HTTP_404_NOT_FOUND, response.status_code)
 
     @patch.object(bookmarks.api.ResponseFormatter, 'format_bookmark')
     @patch.object(bookmarks.dao.Bookmark, 'select_bookmark_by_id')
@@ -119,12 +120,12 @@ class BookmarkManagerApiTests(unittest.TestCase):
         response = self.get_bookmark_by_id(bookmark_id)
 
         # Verify response
-        self.assertEqual(200, response.status_code)
+        self.assertEqual(status.HTTP_200_OK, response.status_code)
         self.assertEqual({'bookmark': 'that I am'}, self.get_response_json(response))
 
         # Verify mocks
         mock_select_bookmark.assert_called_once_with(str(bookmark_id))
-        mock_format_bookmark.assert_called_once_with(mock_bookmark, version=ANY)
+        mock_format_bookmark.assert_called_once_with(mock_bookmark, version=1702)
 
     @patch.object(bookmarks.dao.Bookmark, 'select_bookmark_by_id')
     def test_get_bookmarks_by_id__not_found(self, mock_select_bookmark):
@@ -138,12 +139,12 @@ class BookmarkManagerApiTests(unittest.TestCase):
         response = self.get_bookmark_by_id(bookmark_id)
 
         # Verify response
-        self.assertEqual(404, response.status_code)
+        self.assertEqual(status.HTTP_404_NOT_FOUND, response.status_code)
         self.assertEqual(b'', response.data)
 
     def test_get_bookmark_by_id__unavailable_version(self):
         """Verify 404 if invalid version is supplied.
         """
         response = self.get_bookmark_by_id(uuid.uuid4(), version=1)
-        self.assertEqual(404, response.status_code)
+        self.assertEqual(status.HTTP_404_NOT_FOUND, response.status_code)
 

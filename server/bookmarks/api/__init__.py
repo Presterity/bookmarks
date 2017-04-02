@@ -7,6 +7,7 @@ or updated. Compromise between the human-friendliness of dates and conciseness.
 import logging
 
 from flask import Flask, request, jsonify
+from flask_api import status
 
 import bookmarks.dao as dao
 from .path_converters import AnyIntConverter, AnyApiVersionConverter
@@ -35,6 +36,13 @@ def before_request():
 def after_request(response):
     dao.Session.close(commit=True)
     return response
+
+
+# Custom error handlers
+@app.errorhandler(status.HTTP_404_NOT_FOUND)
+def page_not_found(e):
+    """Instead of the default 404 HTML, return empty response body"""
+    return '', status.HTTP_404_NOT_FOUND
 
 
 # API methods / endpoints

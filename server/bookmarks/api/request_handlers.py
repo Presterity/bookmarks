@@ -77,8 +77,7 @@ class Handlers(object):
             except ValueError:
                 raise BadRequest('count must be a valid int. was: {0}'.format(request.args['count']))
 
-        bookmarks, next_cursor = dao.Bookmark.select_bookmarks(topics=topics, cursor=start_cursor,
-                                                               max_results=max_results)
+        bookmarks, next_cursor = dao.Bookmark.select_bookmarks(topics=topics, cursor=start_cursor, max_results=max_results)
         if len(bookmarks) == 0:
             return '', status.HTTP_204_NO_CONTENT
 
@@ -211,7 +210,7 @@ class Handlers(object):
         :raise: InternalServerError when the Bookmark couldn't be formatted
         """
         try:
-            return ResponseFormatter.format_bookmark(bookmark, version)
+            return ResponseFormatter.format_bookmark(bookmark, version=version)
         except ValueError:
             raise InternalServerError
 
