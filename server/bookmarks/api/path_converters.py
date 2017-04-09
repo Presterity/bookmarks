@@ -1,8 +1,7 @@
 """Custom path converters.
 """
 
-import re
-import werkzeug.routing 
+import werkzeug.routing
 
 
 class AnyIntConverter(werkzeug.routing.BaseConverter):
@@ -20,11 +19,3 @@ class AnyIntConverter(werkzeug.routing.BaseConverter):
         
     def to_python(self, value):
         return int(value)
-
-
-class AnyApiVersionConverter(AnyIntConverter):
-    """Matches a valid bookmark API version number"""
-    VERSION_1702 = 1702
-
-    def __init__(self, map):
-        super(AnyApiVersionConverter, self).__init__(map, self.VERSION_1702)

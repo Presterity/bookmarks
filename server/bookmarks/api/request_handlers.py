@@ -117,7 +117,7 @@ class Handlers(object):
         except ValueError as ve:
             raise BadRequest(str(ve))
 
-        response_data = cls._format_bookmarks([bookmark], version)
+        response_data = cls._format_bookmark(bookmark, version)
         return jsonify(response_data), status.HTTP_200_OK
 
     @classmethod
@@ -146,10 +146,7 @@ class Handlers(object):
         except ValueError as ve:
             raise BadRequest(str(ve))
 
-        response_data = {
-            'bookmarks': [cls._format_bookmark(bookmark, version)]
-        }
-
+        response_data = cls._format_bookmark(bookmark, version)
         return jsonify(response_data), status.HTTP_200_OK
 
     @classmethod

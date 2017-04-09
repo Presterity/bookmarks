@@ -172,14 +172,10 @@ class Bookmark(Base):
             topic_query = session.query(BookmarkTopic.bookmark_id).filter(BookmarkTopic.topic.in_(topics))
             query = query.filter(Bookmark.bookmark_id.in_(topic_query.subquery()))
         if cursor:
-            try:
-                sort_date_limit, bookmark_id_limit = cls._parse_cursor(cursor)
-                query = query.filter(sa.or_(Bookmark.sort_date > sort_date_limit,
-                                            sa.and_(Bookmark.sort_date == sort_date_limit,
-                                                    Bookmark.bookmark_id > bookmark_id_limit)))
-            except ValueError as ex:
-                log.exception("Cursor parse error; ignoring cursor", ex)
-                raise ex
+            sort_date_limit, bookmark_id_limit = cls._parse_cursor(cursor)
+            query = query.filter(sa.or_(Bookmark.sort_date > sort_date_limit,
+                                        sa.and_(Bookmark.sort_date == sort_date_limit,
+                                                Bookmark.bookmark_id > bookmark_id_limit)))
         query = query.order_by(Bookmark.sort_date, Bookmark.bookmark_id)
         query = query.limit(max_results or cls.DEFAULT_MAX_BOOKMARKS)
         results = query.all()
