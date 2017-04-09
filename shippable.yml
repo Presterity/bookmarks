@@ -16,6 +16,7 @@ build:
     - psql -c 'alter role app_user set search_path to apps;' -U postgres presterity
     - psql -c 'grant all on schema apps to app_user;' -U postgres presterity
     - mschematool --config server/migration.py local init_db
+    - mschematool --config server/migration.py local latest_synced
     - mschematool --config server/migration.py local sync
 
     - mkdir -p shippable/testresults
