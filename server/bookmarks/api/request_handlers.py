@@ -117,7 +117,7 @@ class Handlers(object):
         except ValueError as ve:
             raise BadRequest(str(ve))
 
-        response_data = cls._format_bookmark(bookmark, version)
+        response_data = cls._format_bookmark(bookmark=bookmark, version=version)
         return jsonify(response_data), status.HTTP_200_OK
 
     @classmethod
@@ -207,7 +207,7 @@ class Handlers(object):
         :raise: InternalServerError when the Bookmark couldn't be formatted
         """
         try:
-            return ResponseFormatter.format_bookmark(bookmark, version=version)
+            return ResponseFormatter.format_bookmark(bookmark=bookmark, version=version)
         except ValueError:
             raise InternalServerError
 

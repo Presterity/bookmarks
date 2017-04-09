@@ -1,15 +1,15 @@
 """Tests for BookmarkManager API endpoints.
 """
 
-import unittest
-from unittest.mock import ANY, Mock, patch
-from flask_api import status
-import uuid
-
 import json
+import unittest
+import uuid
+from unittest.mock import ANY, Mock, patch
 
-import bookmarks.dao
+from flask_api import status
+
 import bookmarks.api
+import bookmarks.dao
 
 
 class BookmarkManagerApiTests(unittest.TestCase):
@@ -35,6 +35,11 @@ class BookmarkManagerApiTests(unittest.TestCase):
         """
         return self.app.get('/api/{0}/bookmarks/{1}'.format(version, bookmark_id))
 
+    def post_bookmark(self, bookmark, version=1702):
+        """Helper method to call POST bookmarks API"""
+        return self.app.post('/api/{0}/bookmarks/'.format(version), data=json.dumps(bookmark),
+                             content_type='application/json')
+
     def get_response_json(self, response):
         """Extract response data as JSON.
         """
@@ -46,7 +51,7 @@ class BookmarkManagerApiTests(unittest.TestCase):
         """Verify success scenario for retrieving bookmarks with no topics.
         """
         # Set up mocks and test data
-        mock_cursor = 'bW9ja19jdXJzb3I=' # base64 encoding of 'mock_cursor'
+        mock_cursor = 'bW9ja19jdXJzb3I='  # base64 encoding of 'mock_cursor'
         mock_bookmarks = [Mock(name='bookmark_1'), Mock(name='bookmark_2')]
         mock_select_bookmarks.return_value = (mock_bookmarks, mock_cursor)
         mock_format_response.return_value = mock_response_json = {'test_key': 'test_value'}
@@ -125,7 +130,7 @@ class BookmarkManagerApiTests(unittest.TestCase):
 
         # Verify mocks
         mock_select_bookmark.assert_called_once_with(str(bookmark_id))
-        mock_format_bookmark.assert_called_once_with(mock_bookmark, version=1702)
+        mock_format_bookmark.assert_called_once_with(bookmark=mock_bookmark, version=1702)
 
     @patch.object(bookmarks.dao.Bookmark, 'select_bookmark_by_id')
     def test_get_bookmarks_by_id__not_found(self, mock_select_bookmark):
@@ -147,4 +152,21 @@ class BookmarkManagerApiTests(unittest.TestCase):
         """
         response = self.get_bookmark_by_id(uuid.uuid4(), version=1)
         self.assertEqual(status.HTTP_404_NOT_FOUND, response.status_code)
+
+    @patch.object(bookmarks.api.ResponseFormatter, 'format_bookmark')
+    @patch.object(bookmarks.dao.Bookmark, 'create_bookmark')
+    def test_post_bookmark(self, mock_create_bookmark, mock_format_response):
+        bookmark_from_dao = {'new-bookmark': 123}
+        mock_create_bookmark.return_value = bookmark_from_dao
+        mock_format_response.return_value = {'some-bookmark': 'hi'}
+
+        response = self.post_bookmark({'dummy': 123})
+
+        self.assertEqual(status.HTTP_200_OK, response.status_code)
+        self.assertEqual({'some-bookmark': 'hi'}, self.get_response_json(response))
+
+        mock_create_bookmark.assert_called_once_with(dummy=123)
+        mock_format_response.assert_called_once_with(bookmark=bookmark_from_dao, version=1702)
+
+
 
