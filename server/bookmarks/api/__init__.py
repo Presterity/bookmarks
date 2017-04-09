@@ -16,7 +16,6 @@ from .response_formatter import ResponseFormatter
 
 # API version numbers
 VERSION_1702 = 1702
-URI_PREFIX = '/api/<any_int({0}):version>'.format(VERSION_1702)
 
 # Create Flask app and set up basic logging
 app = Flask(__name__)
@@ -42,6 +41,7 @@ def after_request(response):
 
 
 def uri_path_prefix(*versions):
+    """Construct a URI path prefix for the bookmarks API, given a list of supported versions"""
     if len(versions) < 1:
         raise ValueError('must provide at least one version number')
     versions_str = ','.join([str(i) for i in versions])
@@ -49,6 +49,7 @@ def uri_path_prefix(*versions):
 
 
 def uri_path(suffix, *versions):
+    """Construct a URI path for the bookmarks API, given a resource suffix and a list of supported versions"""
     prefix = uri_path_prefix(*versions)
     return '{0}/{1}'.format(prefix, suffix)
 
