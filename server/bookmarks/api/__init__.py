@@ -61,6 +61,13 @@ def page_not_found(e):
     return '', status.HTTP_404_NOT_FOUND
 
 
+@app.errorhandler(status.HTTP_400_BAD_REQUEST)
+def bad_request(e):
+    """Instead of the default 400 HTML, response body is text with error"""
+    # TODO: acceptable for request body to be a plain text string rather than JSON?
+    return str(e), status.HTTP_400_BAD_REQUEST
+
+
 # API methods / endpoints
 @app.route('/')
 def root():

@@ -40,10 +40,13 @@ class BookmarkManagerApiTests(unittest.TestCase):
         return self.app.post('/api/{0}/bookmarks/'.format(version), data=json.dumps(bookmark),
                              content_type='application/json')
 
+    def get_response_str(self, response):
+        return response.data.decode(encoding='utf-8')
+
     def get_response_json(self, response):
         """Extract response data as JSON.
         """
-        return json.loads(response.data.decode(encoding='utf-8'))
+        return json.loads(self.get_response_str(response))
 
     @patch.object(bookmarks.api.ResponseFormatter, 'format_bookmarks_response')
     @patch.object(bookmarks.dao.Bookmark, 'select_bookmarks')
@@ -168,5 +171,15 @@ class BookmarkManagerApiTests(unittest.TestCase):
         mock_create_bookmark.assert_called_once_with(dummy=123)
         mock_format_response.assert_called_once_with(bookmark=bookmark_from_dao, version=1702)
 
+    @patch.object(bookmarks.dao.Bookmark, 'create_bookmark')
+    def test_post_bookmark__bad_request(self, mock_create_bookmark):
+        mock_create_bookmark.side_effect = ValueError('something bad happened')
+
+        response = self.post_bookmark({'dummy': 123})
+
+        self.assertEqual(status.HTTP_400_BAD_REQUEST, response.status_code)
+        self.assertEqual('400 Bad Request: something bad happened', self.get_response_str(response))
+
+        mock_create_bookmark.assert_called_once_with(dummy=123)
 
 
