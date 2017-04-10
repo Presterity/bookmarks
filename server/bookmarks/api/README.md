@@ -160,7 +160,8 @@ required.
   "summary"     : <str>,
   "display_date": <str>,  
   "description" : <str>?,
-  "topics"      : [<str>, ...]?,
+  "topics"      : [<str>, ...]?
+}
 ```
 
 
