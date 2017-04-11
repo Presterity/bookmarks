@@ -26,7 +26,6 @@ class ResponseFormatter(object):
           "description" : <str>,
           "display_date": <str that is date for display, e.g. '201701'>,
           "summary"     : <str>,
-          "sort_date"   : <str that is utc date in isoformat>,
           "status"      : <str>,
           "topics"      : [<str>, ...],
           "tld"         : <str that is top-level domain, e.g. 'cnn.com'>,
@@ -37,7 +36,6 @@ class ResponseFormatter(object):
         d = {}
         for attr in ('bookmark_id', 'description', 'summary', 'status', 'url'):
             d[attr] = str(getattr(bookmark, attr))
-        d['sort_date'] = bookmark.sort_date.isoformat()
         d['display_date'] = bookmark.sort_date.strftime(bookmark.display_date_format)
         d['tld'] = tldextract.extract(bookmark.url).registered_domain
         d['topics'] = [t.topic for t in bookmark.topics]

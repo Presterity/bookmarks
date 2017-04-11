@@ -1,8 +1,8 @@
 """Custom path converters.
 """
 
-import re
-import werkzeug.routing 
+import werkzeug.routing
+
 
 class AnyIntConverter(werkzeug.routing.BaseConverter):
     """Matches one of the integers provided, e.g. <any_int(1,2,3):version>
@@ -19,4 +19,3 @@ class AnyIntConverter(werkzeug.routing.BaseConverter):
         
     def to_python(self, value):
         return int(value)
-

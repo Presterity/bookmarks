@@ -36,6 +36,18 @@ a REST API used by the internal and user-facing Presterity web clients.
   pip install -r requirements.txt
   ```
 
+### (optional) Set up the project in PyCharm
+
+If you use PyCharm as your IDE, this section will show you how to set up the project.
+
+1. Open your project in PyCharm
+1. Tell PyCharm about the virtual environment you just created by following
+[these instructions](https://www.jetbrains.com/help/pycharm/2016.3/adding-existing-virtual-environment.html)
+1. Tell PyCharm where to look for modules within your project. Right-click on the `server/` directory in the project 
+explorer and select `Mark Directory as -> Sources Root`
+
+Now whenever you add a new module to the project or install a new dependency into your virtual environment, PyCharm
+will know about it.
 
 ### Set up your database
 

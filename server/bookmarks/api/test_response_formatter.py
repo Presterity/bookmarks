@@ -34,7 +34,6 @@ class ResponseFormatterTests(unittest.TestCase):
         expected_dict = {k: str(v) for (k,v) in self._bookmark_dao_data.items() 
                          if k in serialized_attrs}
         expected_dict['display_date'] = '2017.02.22'
-        expected_dict['sort_date'] = self._bookmark_dao_data['sort_date'].isoformat()
         expected_dict['tld'] = 'foo.com'
         expected_dict['topics'] = []
 
