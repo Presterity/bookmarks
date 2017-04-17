@@ -11,6 +11,7 @@ from flask_api import status
 
 import bookmarks.dao as dao
 from .path_converters import AnyIntConverter
+import werkzeug.routing.UUIDConverter as UUIDConverter
 from .request_handlers import Handlers
 from .response_formatter import ResponseFormatter
 
@@ -24,6 +25,7 @@ app.logger.setLevel(logging.INFO)
 
 # Register custom URL converters
 app.url_map.converters['any_int'] = AnyIntConverter
+app.url_map.converters['uuid'] = UuidConverter
 
 
 # Database actions on startup and around each request
@@ -85,7 +87,7 @@ def get_bookmarks(version=None):
     return Handlers.get_bookmarks(request, version)
 
 
-@app.route(uri_path('bookmarks/<string:bookmark_id>', VERSION_1702), methods=['GET'])
+@app.route(uri_path('bookmarks/<uuid:bookmark_id>', VERSION_1702), methods=['GET'])
 def get_bookmark_by_id(bookmark_id, version):
     return Handlers.get_bookmark_by_id(bookmark_id, version)
 
@@ -95,11 +97,11 @@ def post_bookmark(version=None):
     return Handlers.post_bookmark(request, version)
 
 
-@app.route(uri_path('bookmarks/<string:bookmark_id>', VERSION_1702), methods=['PUT'])
+@app.route(uri_path('bookmarks/<uuid:bookmark_id>', VERSION_1702), methods=['PUT'])
 def put_bookmark(bookmark_id, version):
     return Handlers.put_bookmark(request, bookmark_id, version)
 
 
-@app.route(uri_path('bookmarks/<string:bookmark_id>', VERSION_1702), methods=['DELETE'])
+@app.route(uri_path('bookmarks/<uuid:bookmark_id>', VERSION_1702), methods=['DELETE'])
 def delete_bookmark(bookmark_id, version):
     return Handlers.delete_bookmark(bookmark_id, version)
