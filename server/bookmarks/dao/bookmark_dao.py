@@ -136,20 +136,19 @@ class Bookmark(Base):
         return saved_bookmark
 
     @classmethod
-    def delete_bookmark(cls, bookmark_id: Union[str, uuid.UUID]) -> None:
+    def delete_bookmark(cls, bookmark_id: uuid.UUID) -> None:
         """Delete bookmark. 
 
         If requested bookmark does not exist, do not raise. Fair assumption is that
         bookmark did exist and was already deleted. In any case, the desired result of
         the bookmark not existing is True if it isn't there in the first place.
 
-        :param bookmark_id: UUID or string that is id of bookmark to be deleted
+        :param bookmark_id: UUID that is id of bookmark to be deleted
         """
         if not bookmark_id:
             raise ValueError("Missing required argument 'bookmark_id'")
         Session.get().query(Bookmark).filter_by(bookmark_id=bookmark_id).delete()
         
-
     @classmethod
     def select_bookmarks(cls, topics: List[str]=None, cursor=None, max_results=None) -> Tuple[List['Bookmark'], str]:
         """Select bookmarks, filtering by topics if specified, in ascending order by sort_date.
@@ -183,17 +182,17 @@ class Bookmark(Base):
         return results, cursor
 
     @classmethod
-    def select_bookmark_by_id(cls, bookmark_id: Union[uuid.UUID, str]) -> Optional['Bookmark']:
+    def select_bookmark_by_id(cls, bookmark_id: uuid.UUID) -> Optional['Bookmark']:
         """Select bookmark for specified id. 
 
-        :param bookmark_id: UUID or string that is bookmark id
+        :param bookmark_id: UUID that is bookmark id
         :return: selected Bookmark or None if no such bookmark exists
         """
         query = Session.get().query(Bookmark).filter_by(bookmark_id=bookmark_id)
         return query.first()
 
     @classmethod
-    def update_bookmark(cls, bookmark_id: Union[uuid.UUID, str], **kwargs) -> 'Bookmark':
+    def update_bookmark(cls, bookmark_id: uuid.UUID, **kwargs) -> 'Bookmark':
         """Update, persist and return updated Bookmark object.
 
         Optional contents of **kwargs:
@@ -204,7 +203,7 @@ class Bookmark(Base):
           * topics: List of strings that are presterity.org topic page names
           * status: String that is valid BookmarkStatus
 
-        :param bookmark_id: string or UUID that identifies existing bookmark
+        :param bookmark_id: UUID that identifies existing bookmark
         :param **kwargs: dict of optional data described above
 
         :return: updated Bookmark

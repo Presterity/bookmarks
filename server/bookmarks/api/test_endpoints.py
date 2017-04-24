@@ -159,7 +159,7 @@ class BookmarkManagerApiTests(unittest.TestCase):
         self.assertEqual({'bookmark': 'that I am'}, self.get_response_json(response))
 
         # Verify mocks
-        mock_select_bookmark.assert_called_once_with(str(bookmark_id))
+        mock_select_bookmark.assert_called_once_with(bookmark_id)
         mock_format_bookmark.assert_called_once_with(bookmark=mock_bookmark, version=bookmarks.api.VERSION_1702)
 
     @patch.object(bookmarks.dao.Bookmark, 'select_bookmark_by_id')
@@ -168,6 +168,21 @@ class BookmarkManagerApiTests(unittest.TestCase):
         """
         # Set up mocks and test data
         bookmark_id = uuid.uuid4()
+        mock_select_bookmark.return_value = None
+        
+        # Make call
+        response = self.get_bookmark_by_id(bookmark_id)
+
+        # Verify response
+        self.assertEqual(status.HTTP_404_NOT_FOUND, response.status_code)
+        self.assertEqual(b'', response.data)
+
+    @patch.object(bookmarks.dao.Bookmark, 'select_bookmark_by_id')
+    def test_get_bookmarks_by_id__id_must_be_uuid(self, mock_select_bookmark):
+        """Verify response for get_bookmark_by_id when provided id is not a uuid.
+        """
+        # Set up mocks and test data
+        bookmark_id = "bob"
         mock_select_bookmark.return_value = None
         
         # Make call
@@ -241,7 +256,7 @@ class BookmarkManagerApiTests(unittest.TestCase):
 
     def test_delete_bookmark_nonexistent(self):
         """Check that nonexistent bookmark delete returns 204"""
-        response = self.delete_bookmark('some-made-up-id')
+        response = self.delete_bookmark(uuid.uuid4())
 
         self.assertEqual(status.HTTP_204_NO_CONTENT, response.status_code)
         self.assertEqual('', self.get_response_str(response))
@@ -269,3 +284,12 @@ class BookmarkManagerApiTests(unittest.TestCase):
 
         self.assertEqual(status.HTTP_200_OK, response.status_code)
         self.assertEqual(mock_formatted_bookmark, self.get_response_json(response))
+
+    def test_put_bookmark_nonexistent(self):
+        """Check that bookmark with bad id is not added"""
+        bookmark = self.make_bookmark()
+        bookmark_id = ""
+
+        response = self.put_bookmark(bookmark_id, bookmark)
+
+        self.assertEqual(status.HTTP_404_NOT_FOUND, response.status_code)

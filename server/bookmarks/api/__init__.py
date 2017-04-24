@@ -11,7 +11,7 @@ from flask_api import status
 
 import bookmarks.dao as dao
 from .path_converters import AnyIntConverter
-import werkzeug.routing.UUIDConverter as UUIDConverter
+from werkzeug.routing import UUIDConverter
 from .request_handlers import Handlers
 from .response_formatter import ResponseFormatter
 
@@ -25,7 +25,7 @@ app.logger.setLevel(logging.INFO)
 
 # Register custom URL converters
 app.url_map.converters['any_int'] = AnyIntConverter
-app.url_map.converters['uuid'] = UuidConverter
+app.url_map.converters['uuid'] = UUIDConverter
 
 
 # Database actions on startup and around each request

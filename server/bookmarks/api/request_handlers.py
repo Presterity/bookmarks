@@ -7,6 +7,7 @@ from typing import List, Tuple, Union
 from flask import jsonify, Request, Response
 from flask_api import status
 from werkzeug.exceptions import BadRequest, InternalServerError, NotFound
+import uuid
 from base64 import b64encode, b64decode
 import binascii
 
@@ -121,7 +122,7 @@ class Handlers(object):
         return jsonify(response_data), status.HTTP_200_OK
 
     @classmethod
-    def put_bookmark(cls, request: Request, bookmark_id: str, version: int=None) -> Tuple[Response, int]:
+    def put_bookmark(cls, request: Request, bookmark_id: uuid.UUID, version: int=None) -> Tuple[Response, int]:
         """Update an existing bookmark or create a new one, if none exists with the given ID. The expected request body
         format matches that of the post_bookmark method. When updating an existing bookmark, that all fields are
         optional.
@@ -150,7 +151,7 @@ class Handlers(object):
         return jsonify(response_data), status.HTTP_200_OK
 
     @classmethod
-    def delete_bookmark(cls, bookmark_id: str, version: int=None) -> Tuple[Union[Response, str], int]:
+    def delete_bookmark(cls, bookmark_id: uuid.UUID, version: int=None) -> Tuple[Union[Response, str], int]:
         """Delete the bookmark with the given ID. Do nothing if no bookmark with the ID exists.
 
         :param bookmark_id: ID of the bookmark to delete
@@ -166,7 +167,7 @@ class Handlers(object):
         return '', status.HTTP_204_NO_CONTENT
 
     @classmethod
-    def get_bookmark_by_id(cls, bookmark_id: str, version: int=None) -> Tuple[Response, int]:
+    def get_bookmark_by_id(cls, bookmark_id: uuid.UUID, version: int=None) -> Tuple[Response, int]:
         """Retrieve specific bookmark.
 
         :param bookmark_id: ID of the bookmark to get
