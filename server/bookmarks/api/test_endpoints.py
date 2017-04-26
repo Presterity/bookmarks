@@ -267,6 +267,12 @@ class BookmarkManagerApiTests(unittest.TestCase):
 
         self.assertEqual(status.HTTP_405_METHOD_NOT_ALLOWED, response.status_code)
 
+    def test_delete_bookmark_bad_id_format(self):
+        """Check that deleting a bookmark with a bad id format does not match any route and returns a 404"""
+        response = self.delete_bookmark("bob")
+
+        self.assertEqual(status.HTTP_404_NOT_FOUND, response.status_code)
+
     @patch.object(bookmarks.api.ResponseFormatter, 'format_bookmark')
     @patch.object(bookmarks.dao.Bookmark, 'create_bookmark')
     @patch.object(bookmarks.dao.Bookmark, 'update_bookmark')
@@ -286,9 +292,9 @@ class BookmarkManagerApiTests(unittest.TestCase):
         self.assertEqual(mock_formatted_bookmark, self.get_response_json(response))
 
     def test_put_bookmark_nonexistent(self):
-        """Check that bookmark with bad id is not added"""
+        """Check that bookmark with bad id does not match any route and returns a 404"""
         bookmark = self.make_bookmark()
-        bookmark_id = ""
+        bookmark_id = "bob"
 
         response = self.put_bookmark(bookmark_id, bookmark)
 
