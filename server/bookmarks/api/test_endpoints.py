@@ -178,7 +178,7 @@ class BookmarkManagerApiTests(unittest.TestCase):
         self.assertEqual(b'', response.data)
 
     @patch.object(bookmarks.dao.Bookmark, 'select_bookmark_by_id')
-    def test_get_bookmarks_by_id__id_must_be_uuid(self, mock_select_bookmark):
+    def test_no_path_matches_if_bookmark_id_is_not_uuid(self, mock_select_bookmark):
         """Verify response for get_bookmark_by_id when provided id is not a uuid.
         """
         # Set up mocks and test data
@@ -285,11 +285,11 @@ class BookmarkManagerApiTests(unittest.TestCase):
         self.assertEqual(status.HTTP_200_OK, response.status_code)
         self.assertEqual(mock_formatted_bookmark, self.get_response_json(response))
 
-    def test_put_bookmark_nonexistent(self):
+    def test_put_bookmark_nonexistent_bad_id(self):
         """Check that bookmark with bad id is not added"""
         bookmark = self.make_bookmark()
         bookmark_id = ""
 
         response = self.put_bookmark(bookmark_id, bookmark)
 
-        self.assertEqual(status.HTTP_404_NOT_FOUND, response.status_code)
+        self.assertEqual(status.HTTP_405_METHOD_NOT_ALLOWED, response.status_code)
